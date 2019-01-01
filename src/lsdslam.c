@@ -6,7 +6,7 @@
  * Rotate x according to axis n and angle theta.
  * The result is stored to y */
 void
-rotate(float y[3], float n[3], float theta, float x[3])
+R(float y[3], float n[3], float theta, float x[3])
 {
     float s = sinf(theta);
     float c = cosf(theta);
@@ -22,9 +22,9 @@ rotate(float y[3], float n[3], float theta, float x[3])
            (c + n[2]*n[2]*(1-c))*x[2];
 }
 
-/* d(rotate)/d(theta) */
+/* d(R)/d(theta) */
 void
-rotate_theta(float y[3], float n[3], float theta, float x[3])
+R_theta(float y[3], float n[3], float theta, float x[3])
 {
     float s = sinf(theta);
     float c = cosf(theta);
@@ -40,9 +40,9 @@ rotate_theta(float y[3], float n[3], float theta, float x[3])
            (-s + n[2]*n[2]*s)*x[2];
 }
 
-/* d(rotate)/d(n) */
+/* d(R)/d(n) */
 void
-rotate_n(float y[3][3], float n[3], float theta, float x[3])
+R_n(float y[3][3], float n[3], float theta, float x[3])
 {
     float s = sinf(theta);
     float c = cosf(theta);

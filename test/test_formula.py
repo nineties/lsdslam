@@ -27,47 +27,47 @@ t = Matrix(symbols('t1 t2 t3')) # translation vector
 rho = symbols('rho')            # scale factor = exp(rho)
 
 # Rodrigues's rotation formula
-def rotate_formula(n, theta, x):
+def R_formula(n, theta, x):
     return cos(theta)*x + sin(theta)*(n.cross(x)) + (1-cos(theta))*(n.dot(x))*n
 
-rotate = lambdify((n, theta, x), rotate_formula(n, theta, x))
+R = lambdify((n, theta, x), R_formula(n, theta, x))
 
-# d(rotate)/d(theta)
-rotate_theta = lambdify((n, theta, x), diff(rotate_formula(n, theta, x), theta))
+# d(R)/d(theta)
+R_theta = lambdify((n, theta, x), diff(R_formula(n, theta, x), theta))
 
-# d(rotate)/d(n)
-rotate_n = lambdify((n, theta, x), diff(rotate_formula(n, theta, x), n))
+# d(R)/d(n)
+R_n = lambdify((n, theta, x), diff(R_formula(n, theta, x), n))
 
 @repeat(100)
-def test_rotate():
+def test_R():
     n = np.random.randn(3).astype(np.float32)
     x = np.random.randn(3).astype(np.float32)
     theta = np.random.randn()
 
     assert_allclose(
-            rotate(n, theta, x).flatten(),
-            F.rotate(n, theta, x)
+            R(n, theta, x).flatten(),
+            F.R(n, theta, x)
             )
 
 @repeat(100)
-def test_rotate_theta():
+def test_R_theta():
     n = np.random.randn(3).astype(np.float32)
     x = np.random.randn(3).astype(np.float32)
     theta = np.random.randn()
 
     assert_allclose(
-        rotate_theta(n, theta, x).flatten(),
-        F.rotate_theta(n, theta, x)
+        R_theta(n, theta, x).flatten(),
+        F.R_theta(n, theta, x)
         )
 
 @repeat(100)
-def test_rotate_n():
+def test_R_n():
     n = np.random.randn(3).astype(np.float32)
     x = np.random.randn(3).astype(np.float32)
     theta = np.random.randn()
 
     assert_allclose(
-        np.array(rotate_n(n, theta, x)).reshape(3, 3),
-        F.rotate_n(n, theta, x)
+        np.array(R_n(n, theta, x)).reshape(3, 3),
+        F.R_n(n, theta, x)
         )
 
