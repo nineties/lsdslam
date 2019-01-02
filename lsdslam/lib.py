@@ -20,6 +20,11 @@ def inv3x3(A):
     lib.inv3x3(_float_ptr(B), _float_ptr(A))
     return B
 
+def affine3d(A, b, x):
+    y = np.zeros_like(x)
+    lib.affine3d(_float_ptr(y), _float_ptr(A), _float_ptr(b), _float_ptr(x))
+    return y
+
 def R(n, theta):
     y = np.zeros((3, 3), dtype=np.float32)
     lib.R(_float_ptr(y), _float_ptr(n), c_float(theta))

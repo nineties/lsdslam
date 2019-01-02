@@ -1,7 +1,19 @@
 #include <stdio.h>
 #include <math.h>
 
-/**** Matrix ****/
+/* matrix-vector multiplication */
+void
+mulmv3d(float y[3], float A[3][3], float x[3])
+{
+    for (int i = 0; i < 3; i++) {
+        float v = 0.0;
+        for (int k = 0; k < 3; k++) {
+            v += A[i][k] * x[k];
+        }
+        y[i] = v;
+    }
+}
+
 void
 mul3x3(float y[3][3], float a[3][3], float b[3][3])
 {
@@ -42,6 +54,14 @@ inv3x3(float y[3][3], float x[3][3])
     y[2][0] = (x[1][0]*x[2][1] - x[1][1]*x[2][0])/det;
     y[2][1] = (x[0][1]*x[2][0] - x[0][0]*x[2][1])/det;
     y[2][2] = (x[0][0]*x[1][1] - x[0][1]*x[1][0])/det;
+}
+
+void
+affine3d(float y[3], float A[3][3], float b[3], float x[3])
+{
+    mulmv3d(y, A, x);
+    for (int i = 0; i < 3; i++)
+        y[i] += b[i];
 }
 
 /**** Rotation ****/
