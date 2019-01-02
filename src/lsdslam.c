@@ -1,6 +1,49 @@
 #include <stdio.h>
 #include <math.h>
 
+/**** Matrix ****/
+void
+mul3x3(float y[3][3], float a[3][3], float b[3][3])
+{
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            float v = 0.0;
+            for (int k = 0; k < 3; k++) {
+                v += a[i][k] * b[k][j];
+            }
+            y[i][j] = v;
+        }
+    }
+}
+
+/* determinant of 3x3 matrix */
+float
+det3x3(float x[3][3])
+{
+    return x[0][0]*x[1][1]*x[2][2] -
+           x[0][0]*x[1][2]*x[2][1] +
+           x[0][1]*x[1][2]*x[2][0] -
+           x[0][1]*x[1][0]*x[2][2] +
+           x[0][2]*x[2][1]*x[1][0] -
+           x[0][2]*x[2][0]*x[1][1];
+}
+
+/* inverse of 3x3 matrix */
+void
+inv3x3(float y[3][3], float x[3][3])
+{
+    float det = det3x3(x);
+    y[0][0] = (x[1][1]*x[2][2] - x[1][2]*x[2][1])/det;
+    y[0][1] = (x[0][2]*x[2][1] - x[0][1]*x[2][2])/det;
+    y[0][2] = (x[0][1]*x[1][2] - x[0][2]*x[1][1])/det;
+    y[1][0] = (x[1][2]*x[2][0] - x[1][0]*x[2][2])/det;
+    y[1][1] = (x[0][0]*x[2][2] - x[0][2]*x[2][0])/det;
+    y[1][2] = (x[0][2]*x[1][0] - x[0][0]*x[1][2])/det;
+    y[2][0] = (x[1][0]*x[2][1] - x[1][1]*x[2][0])/det;
+    y[2][1] = (x[0][1]*x[2][0] - x[0][0]*x[2][1])/det;
+    y[2][2] = (x[0][0]*x[1][1] - x[0][1]*x[1][0])/det;
+}
+
 /**** Rotation ****/
 
 /* Rodrigues's rotation formula
