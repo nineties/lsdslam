@@ -4,7 +4,7 @@ import numpy as np
 # Utilities
 
 def assert_allclose(x, y):
-    np.testing.assert_allclose(x, y, rtol=1e-5, atol=1e-5)
+    np.testing.assert_allclose(x, y, rtol=1e-2)
 
 def repeat(n):
     def decorate(f):
