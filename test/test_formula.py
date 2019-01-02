@@ -105,3 +105,18 @@ def test_T():
             T(rho, n, theta, t, x).flatten(),
             A.dot(x) + b
             )
+
+@repeat(100)
+def test_KT():
+    x = random_vec(3)
+    n = random_norm(3)
+    t = random_vec(3)
+    theta = np.random.randn()
+    rho = np.random.randn()
+    K = np.random.randn(3, 3).astype(np.float32)
+
+    A, b = L.precompute_KT(K, rho, n, theta, t)
+    assert_allclose(
+            K.dot(T(rho, n, theta, t, x).flatten()),
+            A.dot(x) + b
+            )
