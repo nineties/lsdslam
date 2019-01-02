@@ -45,16 +45,24 @@ R = lambdify((n, theta), R_formula(n, theta))
 R_theta = lambdify((n, theta), diff(R_formula(n, theta), theta))
 
 # dR/dn
-def R_n(n_, theta_):
-    f = lambdify((n, theta), diff(R_formula(n, theta), n))
-    return np.array(f(n_, theta_)).reshape(3, 3, 3)
+R_n = [
+    lambdify((n, theta), diff(R_formula(n, theta), n1)),
+    lambdify((n, theta), diff(R_formula(n, theta), n2)),
+    lambdify((n, theta), diff(R_formula(n, theta), n3))
+    ]
 
 def rotate_formula(n, theta, x):
     return R_formula(n, theta) * x
 
-def rotate_n(n_, theta_, x_):
-    f = lambdify((n, theta, x), diff(rotate_formula(n, theta, x), n))
-    return np.array(f(n_, theta_, x_)).reshape(3, 3)
+def rotate_n_formula(n, theta, x):
+    y = rotate_formula(n, theta, x)
+    return diff(y, n_1).row_join(diff(y, n_2)).row_join(diff(y, n_3))
+
+rotate_n = [
+    lambdify((n, theta, x), diff(rotate_formula(n, theta, x), n1)),
+    lambdify((n, theta, x), diff(rotate_formula(n, theta, x), n2)),
+    lambdify((n, theta, x), diff(rotate_formula(n, theta, x), n3))
+    ]
 
 @repeat(100)
 def test_R():
@@ -81,10 +89,10 @@ def test_R_n():
     n = random_norm(3)
     theta = np.random.randn()
 
-    assert_allclose(
-        R_n(n, theta),
-        F.R_n(n, theta)
-        )
+    A = F.R_n(n, theta)
+
+    for i in range(3):
+        assert_allclose(R_n[i](n, theta), A[i])
 
 @repeat(100)
 def test_rotate_n():
@@ -92,7 +100,9 @@ def test_rotate_n():
     x = random_vec(3)
     theta = np.random.randn()
 
-    assert_allclose(
-        rotate_n(n, theta, x),
-        F.R_n(n, theta).dot(x)
-        )
+    A = F.R_n(n, theta)
+    for i in range(3):
+        assert_allclose(
+            rotate_n[i](n, theta, x).flatten(),
+            A[i].dot(x)
+            )
