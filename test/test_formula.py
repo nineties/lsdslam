@@ -2,7 +2,7 @@ import numpy as np
 from sympy import Matrix, symbols, diff, simplify, lambdify, transpose, cos, sin, exp, eye
 
 from util import assert_allclose, repeat, random_vec, random_norm
-import lsdslam.formula as F
+import lsdslam.lib as L
 
 # Formulas
 x = Matrix(symbols('x1 x2 x3')) # 3d point
@@ -50,7 +50,7 @@ def test_R():
 
     assert_allclose(
             R(n, theta),
-            F.R(n, theta)
+            L.R(n, theta)
             )
 
 @repeat(100)
@@ -60,7 +60,7 @@ def test_R_theta():
 
     assert_allclose(
         R_theta(n, theta),
-        F.R_theta(n, theta)
+        L.R_theta(n, theta)
         )
 
 @repeat(100)
@@ -68,7 +68,7 @@ def test_R_n():
     n = random_norm(3)
     theta = np.random.randn()
 
-    A = F.R_n(n, theta)
+    A = L.R_n(n, theta)
 
     for i in range(3):
         assert_allclose(R_n[i](n, theta), A[i])
@@ -79,7 +79,7 @@ def test_rotate_n():
     x = random_vec(3)
     theta = np.random.randn()
 
-    A = F.R_n(n, theta)
+    A = L.R_n(n, theta)
     for i in range(3):
         assert_allclose(
             rotate_n[i](n, theta, x).flatten(),
