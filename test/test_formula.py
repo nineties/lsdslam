@@ -1,29 +1,8 @@
-import time
-from nose.tools import make_decorator
 import numpy as np
 from sympy import Matrix, symbols, diff, simplify, lambdify, transpose, cos, sin, exp, eye
 
+from util import assert_allclose, repeat, random_vec, random_norm
 import lsdslam.formula as F
-
-# Utilities
-
-def assert_allclose(x, y):
-    np.testing.assert_allclose(x, y, rtol=1e-5, atol=1e-5)
-
-def repeat(n):
-    def decorate(f):
-        def newfunc(*args, **kw):
-            for i in range(n):
-                f(*args, **kw)
-        return make_decorator(f)(newfunc)
-    return decorate
-
-def random_vec(n):
-    return np.random.randn(n).astype(np.float32)
-
-def random_norm(n):
-    v = random_vec(n)
-    return v/np.sqrt(v.dot(v))
 
 # Formulas
 x = Matrix(symbols('x1 x2 x3')) # 3d point
