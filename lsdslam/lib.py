@@ -27,17 +27,17 @@ def affine3d(A, b, x):
 
 def R(n, theta):
     y = np.zeros((3, 3), dtype=np.float32)
-    lib.R(_float_ptr(y), _float_ptr(n), c_float(theta))
+    lib.compute_R(_float_ptr(y), _float_ptr(n), c_float(theta))
     return y
 
 def R_theta(n, theta):
     y = np.zeros((3, 3), dtype=np.float32)
-    lib.R_theta(_float_ptr(y), _float_ptr(n), c_float(theta))
+    lib.compute_R_theta(_float_ptr(y), _float_ptr(n), c_float(theta))
     return y
 
 def R_n(n, theta):
     y = np.zeros((3, 3, 3), dtype=np.float32)
-    lib.R_n(_float_ptr(y), _float_ptr(n), c_float(theta))
+    lib.compute_R_n(_float_ptr(y), _float_ptr(n), c_float(theta))
     return y
 
 def T(t, n, theta, rho, x):

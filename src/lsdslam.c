@@ -70,7 +70,7 @@ affine3d(float y[3], float A[3][3], float b[3], float x[3])
  * Rotate x according to axis n and angle theta.
  * The result is stored to y */
 void
-R(float y[3][3], float n[3], float theta)
+compute_R(float y[3][3], float n[3], float theta)
 {
     float s = sinf(theta);
     float c = cosf(theta);
@@ -88,7 +88,7 @@ R(float y[3][3], float n[3], float theta)
 
 // dR/d(theta)
 void
-R_theta(float y[3][3], float n[3], float theta)
+compute_R_theta(float y[3][3], float n[3], float theta)
 {
     float s = sinf(theta);
     float c = cosf(theta);
@@ -106,7 +106,7 @@ R_theta(float y[3][3], float n[3], float theta)
 
 // dR/dn
 void
-R_n(float y[3][3][3], float n[3], float theta)
+compute_R_n(float y[3][3][3], float n[3], float theta)
 {
     float s = sinf(theta);
     float c = cosf(theta);
