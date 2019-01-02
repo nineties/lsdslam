@@ -40,12 +40,8 @@ def R_n(n, theta):
     lib.compute_R_n(_float_ptr(y), _float_ptr(n), c_float(theta))
     return y
 
-def T(t, n, theta, rho, x):
-    y = np.zeros(3, dtype=np.float32)
-    lib.T(_float_ptr(y), _float_ptr(t), _float_ptr(n), c_float(theta), c_float(rho), _float_ptr(x))
-    return y
-
-def T_t(t, n, theta, rho, x):
-    y = np.zeros((3, 3), dtype=np.float32)
-    lib.T_t(_float_ptr(y), _float_ptr(t), _float_ptr(n), c_float(theta), c_float(rho), _float_ptr(x))
-    return y
+def precompute_T(rho, n, theta, t):
+    A = np.zeros((3, 3), dtype=np.float32)
+    b = np.zeros(3, dtype=np.float32)
+    lib.precompute_T(_float_ptr(A), _float_ptr(b), c_float(rho), _float_ptr(n), c_float(theta), _float_ptr(t))
+    return A, b

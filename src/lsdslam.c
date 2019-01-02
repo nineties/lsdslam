@@ -132,3 +132,20 @@ compute_R_n(float y[3][3][3], float n[3], float theta)
     y[2][0][1] = -s;
     y[2][1][0] = s;
 }
+
+/**** Similarity Transformation* ****/
+/* Ax+b = sRx + t */
+void
+precompute_T(float A[3][3], float b[3], float rho, float n[3], float theta, float t[3])
+{
+    for (int i = 0; i < 3; i++)
+        b[i] = t[i];
+
+    compute_R(A, n, theta);
+    float s = expf(rho);
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            A[i][j] *= s;
+        }
+    }
+}

@@ -43,6 +43,12 @@ rotate_n = [
     lambdify((n, theta, x), diff(rotate_formula(n, theta, x), n3))
     ]
 
+def T_formula(rho, n, theta, t, x):
+    return exp(rho)*R_formula(n, theta)*x + t
+
+T = lambdify((rho, n, theta, t, x), T_formula(rho, n, theta, t, x))
+
+
 @repeat(100)
 def test_R():
     n = random_norm(3)
@@ -59,9 +65,9 @@ def test_R_theta():
     theta = np.random.randn()
 
     assert_allclose(
-        R_theta(n, theta),
-        L.R_theta(n, theta)
-        )
+            R_theta(n, theta),
+            L.R_theta(n, theta)
+            )
 
 @repeat(100)
 def test_R_n():
@@ -84,4 +90,18 @@ def test_rotate_n():
         assert_allclose(
             rotate_n[i](n, theta, x).flatten(),
             A[i].dot(x)
+            )
+
+@repeat(100)
+def test_T():
+    x = random_vec(3)
+    n = random_norm(3)
+    t = random_vec(3)
+    theta = np.random.randn()
+    rho = np.random.randn()
+
+    A, b = L.precompute_T(rho, n, theta, t)
+    assert_allclose(
+            T(rho, n, theta, t, x).flatten(),
+            A.dot(x) + b
             )
