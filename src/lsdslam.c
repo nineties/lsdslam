@@ -263,18 +263,7 @@ gaussian_filter3x3(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
 }
 
 void
-gradx(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
-{
-    float k[3][3] = {
-        {1/4., 0., -1/4.},
-        {2/4., 0., -2/4.},
-        {1/4., 0., -1/4.},
-    };
-    filter3x3(y, k, x);
-}
-
-void
-grady(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
+gradu(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
 {
     float k[3][3] = {
         { 1/4., 2/4., 1/4.},
@@ -285,15 +274,26 @@ grady(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
 }
 
 void
+gradv(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
+{
+    float k[3][3] = {
+        {1/4., 0., -1/4.},
+        {2/4., 0., -2/4.},
+        {1/4., 0., -1/4.},
+    };
+    filter3x3(y, k, x);
+}
+
+void
 create_mask(bool mask[HEIGHT][WIDTH], float I[HEIGHT][WIDTH], float thresh)
 {
-    float gx[HEIGHT][WIDTH];
-    float gy[HEIGHT][WIDTH];
-    gradx(gx, I);
-    grady(gy, I);
+    float gu[HEIGHT][WIDTH];
+    float gv[HEIGHT][WIDTH];
+    gradu(gu, I);
+    gradv(gv, I);
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++)
-            mask[i][j] = sqrtf(square(gx[i][j]) + square(gy[i][j])) > thresh;
+            mask[i][j] = sqrtf(square(gu[i][j]) + square(gv[i][j])) > thresh;
     }
 }
 

@@ -258,12 +258,12 @@ def test_sobel_filter():
     I = read_image('test/I.png')/255.
     assert_allclose(
             sobel(I, axis=0, mode='constant')/4,
-            L.grady(I),
+            L.gradu(I),
             rtol=0, atol=1e-5
             )
     assert_allclose(
             sobel(I, axis=1, mode='constant')/4,
-            L.gradx(I),
+            L.gradv(I),
             rtol=0, atol=1e-5
             )
 
