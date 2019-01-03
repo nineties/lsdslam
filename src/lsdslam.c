@@ -223,10 +223,10 @@ gaussian_filter_3x3(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
         t[i][WIDTH-1] = (x[i][WIDTH-2] + x[i][WIDTH-1])/9;
     }
     for (int j = 0; j < WIDTH; j++) {
-        y[0][j] = (t[0][j] + t[1][j])/9;
+        y[0][j] = t[0][j] + t[1][j];
         for (int i = 1; i < HEIGHT-1; i++)
-            y[i][j] = (t[i-1][j] + t[i][j] + t[i+1][j])/9;
-        y[HEIGHT-1][j] = (t[HEIGHT-2][j] + t[HEIGHT-1][j])/9;
+            y[i][j] = t[i-1][j] + t[i][j] + t[i+1][j];
+        y[HEIGHT-1][j] = t[HEIGHT-2][j] + t[HEIGHT-1][j];
     }
 }
 

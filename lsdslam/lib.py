@@ -80,6 +80,11 @@ def piinv_d(p, d):
     lib.piinv_d(_fp(y), _fp(p), c_float(d))
     return y
 
+def gaussian_filter_3x3(I):
+    y = np.zeros_like(I)
+    lib.gaussian_filter_3x3(_fp(y), _fp(I))
+    return y
+
 class ComputeCache(Structure):
     _fields_ = [
             ('mask', c_bool * WIDTH * HEIGHT),

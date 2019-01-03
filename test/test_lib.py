@@ -1,6 +1,7 @@
 import time
 import numpy as np
 from sympy import Matrix, symbols, diff, simplify, lambdify, transpose, cos, sin, exp, eye
+from scipy.signal import convolve2d
 from PIL import Image
 
 import lsdslam.lib as L
@@ -232,6 +233,16 @@ def test_piinv_d():
     assert_allclose(
             piinv_d(x, d).flatten(),
             L.piinv_d(x, d)
+            )
+
+def test_gaussian_filter():
+    I = read_image('test/I.png')
+    assert_allclose(
+            convolve2d(I,
+                [[1/9., 1/9., 1/9.],
+                 [1/9., 1/9., 1/9.],
+                 [1/9., 1/9., 1/9.]], mode='same'),
+            L.gaussian_filter_3x3(I)
             )
 
 def test_rp():
