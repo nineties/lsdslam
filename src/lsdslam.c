@@ -356,10 +356,13 @@ solve(float *x, int n, float *A, float *b)
 EXPORT void
 create_mask(bool mask[HEIGHT][WIDTH], float I[HEIGHT][WIDTH], float thresh)
 {
+    float I_[HEIGHT][WIDTH];
     float gu[HEIGHT][WIDTH];
     float gv[HEIGHT][WIDTH];
-    gradu(gu, I);
-    gradv(gv, I);
+
+    gaussian_filter3x3(I_, I);
+    gradu(gu, I_);
+    gradv(gv, I_);
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++)
             mask[i][j] = sqrtf(square(gu[i][j]) + square(gv[i][j])) > thresh;
