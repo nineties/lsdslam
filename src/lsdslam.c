@@ -466,7 +466,7 @@ precompute_cache(
 // *res will be NaN for out-bound error.
 void
 photometric_residual(struct lsdslam *slam,
-        float *res, float J[8], float *w,
+        float *rp, float *wp, float J[8],
         int u_ref, int v_ref)
 {
     struct compute_cache *cache = &slam->cache;
@@ -483,11 +483,11 @@ photometric_residual(struct lsdslam *slam,
     int v = (int)q[1];
 
     if (u < 0 || u >= HEIGHT || v < 0 || v >= WIDTH) {
-        *res = NAN;
+        *rp = NAN;
         return;
     }
 
-    *res = cache->Iref[u_ref][v_ref] - cache->I[u][v];
+    *rp = cache->Iref[u_ref][v_ref] - cache->I[u][v];
 
     /* d(pi_p)/dy */
     float pip_y[2][3];

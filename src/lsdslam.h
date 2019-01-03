@@ -28,7 +28,8 @@ struct compute_cache {
 };
 
 struct param {
-    float mask_thresh;
+    float mask_thresh;  /* use points which satisfy ||nabla I|| > mask_thresh */
+    float huber_delta;  /* huber-norm */
 };
 
 struct lsdslam {
