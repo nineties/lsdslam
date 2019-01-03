@@ -257,6 +257,15 @@ def test_variance():
     I = read_image('test/I.png')
     assert_allclose(I.var(), L.variance(I))
 
+def test_solve():
+    A = np.random.randn(8, 8).astype(np.float32)
+    b = np.random.randn(8).astype(np.float32)
+
+    assert_allclose(
+            np.linalg.solve(A, b),
+            L.solve(A, b)
+            )
+
 def test_photometric_residual():
     I = read_image('test/I.png')
     Iref = read_image('test/Iref.png')

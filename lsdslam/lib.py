@@ -98,6 +98,14 @@ lib.variance.restype = c_float
 def variance(I):
     return lib.variance(_fp(I))
 
+def solve(A, b):
+    x = np.zeros_like(b)
+    n = len(x)
+    A = A.copy()
+    b = b.copy()
+    lib.solve(_fp(x), c_int(n), _fp(A), _fp(b))
+    return x
+
 class Param(Structure):
     _fields_ = [
             ('mask_thresh', c_float)

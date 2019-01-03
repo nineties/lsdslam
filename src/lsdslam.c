@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <sys/time.h>
@@ -102,6 +103,10 @@ void
 inv3x3(float y[3][3], float x[3][3])
 {
     float det = det3x3(x);
+    if (fabs(det) < 1e-12) {
+        fprintf(stderr, "Singular matrix\n");
+        exit(1);
+    }
     y[0][0] = (x[1][1]*x[2][2] - x[1][2]*x[2][1])/det;
     y[0][1] = (x[0][2]*x[2][1] - x[0][1]*x[2][2])/det;
     y[0][2] = (x[0][1]*x[1][2] - x[0][2]*x[1][1])/det;
@@ -313,6 +318,56 @@ variance(float x[HEIGHT][WIDTH])
     mean /= (HEIGHT*WIDTH);
     sqmean /= (HEIGHT*WIDTH);
     return sqmean - mean*mean;
+}
+
+/* Solve linear system Ax=b of degree n
+ * NB: This function overwrite A and b
+ */
+void
+solve(float *x, int n, float *A, float *b)
+{
+    for (int k = 0; k < n; k++) {
+        /* select pivot */
+        int pivot = k;
+        float pmax = fabs(A[k*n + k]);
+        for (int i = k+1; i < n; i++) {
+            float p = fabs(A[i*n + k]);
+            if (p > pmax) {
+                pivot = i;
+                pmax = p;
+            }
+        }
+        if (pmax < 1e-12) {
+            fprintf(stderr, "Singular matrix\n");
+            exit(1);
+        }
+
+        if (pivot != k) {
+            /* swap row k and pivot */
+            for (int j = 0; j < n; j++) {
+                float tmp = A[k*n + j];
+                A[k*n + j] = A[pivot*n + j];
+                A[pivot*n + j] = tmp;
+            }
+            float tmp = b[k];
+            b[k] = b[pivot];
+            b[pivot] = tmp;
+        }
+
+        for (int i = k+1; i < n; i++) {
+            float c = A[i*n + k]/A[k*n + k];
+            for (int j = k+1; j < n; j++)
+                A[i*n + j] -= c*A[k*n + j];
+            A[i*n + k] = 0;
+            b[i] -= c*b[k];
+        }
+    }
+    for (int i = n-1; i >= 0; i--) {
+        float tmp = b[i];
+        for (int j = n-1; j > i; j--)
+            tmp -= x[j] * A[i*n + j];
+        x[i] = tmp / A[i*n + i];
+    }
 }
 
 void
