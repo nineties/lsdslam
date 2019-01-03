@@ -300,6 +300,10 @@ def test_photometric_residual():
 
         J1 = -I_y.dot(tau_xi)
 
+        # weight
+        I_Dref = I_y.dot(s*K.dot(R(n, theta)).dot(Kinv)).dot(piinv_d(p_ref, Dref[p_ref]))
+        w1 = 2*I.var() + (I_Dref[0])**2 * Vref[p_ref]
+
 
     # Compute with the lib
     slam = L.LSDSLAMStruct()
@@ -308,8 +312,9 @@ def test_photometric_residual():
         Iref, Dref, Vref, I,
         K, rho, n, theta, t
         )
-    rp2, J2, w = L.photometric_residual(slam, p_ref)
+    rp2, J2, w2 = L.photometric_residual(slam, p_ref)
 
     assert_allclose(rp1, rp2)
     if not np.isnan(rp1):
         assert_allclose(J1, J2, rtol=1e-1)
+        assert_allclose(w1, w2)
