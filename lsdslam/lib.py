@@ -91,14 +91,14 @@ def gaussian_filter3x3(I):
     lib.gaussian_filter3x3(_fp(y), _fp(I))
     return y
 
-def sobelx(I):
+def gradx(I):
     y = np.zeros_like(I)
-    lib.sobelx(_fp(y), _fp(I))
+    lib.gradx(_fp(y), _fp(I))
     return y
 
-def sobely(I):
+def grady(I):
     y = np.zeros_like(I)
-    lib.sobely(_fp(y), _fp(I))
+    lib.grady(_fp(y), _fp(I))
     return y
 
 class Param(Structure):

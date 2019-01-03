@@ -263,7 +263,7 @@ gaussian_filter3x3(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
 }
 
 void
-sobelx(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
+gradx(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
 {
     float k[3][3] = {
         {1/4., 0., -1/4.},
@@ -274,7 +274,7 @@ sobelx(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
 }
 
 void
-sobely(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
+grady(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
 {
     float k[3][3] = {
         { 1/4., 2/4., 1/4.},
@@ -289,8 +289,8 @@ create_mask(bool mask[HEIGHT][WIDTH], float I[HEIGHT][WIDTH], float thresh)
 {
     float gx[HEIGHT][WIDTH];
     float gy[HEIGHT][WIDTH];
-    sobelx(gx, I);
-    sobely(gy, I);
+    gradx(gx, I);
+    grady(gy, I);
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++)
             mask[i][j] = sqrtf(square(gx[i][j]) + square(gy[i][j])) > thresh;
@@ -306,19 +306,15 @@ precompute_cache(
         float I[HEIGHT][WIDTH]
         )
 {
-    memcpy(slam->cache.Iref, Iref, sizeof(slam->cache.Iref));
-    memcpy(slam->cache.Dref, Dref, sizeof(slam->cache.Dref));
-    memcpy(slam->cache.Vref, Vref, sizeof(slam->cache.Vref));
-    create_mask(slam->cache.mask, Iref, slam->param.mask_thresh);
+    struct compute_cache *cache = &slam->cache;
+    create_mask(cache->mask, Iref, slam->param.mask_thresh);
 
-#if 0
-    {
-        float k[3][3] = {
-            {0., 0., 0.};
-            {0., 0., 0.};
-            {0., 0., 0.};
+    memcpy(cache->Iref, Iref, sizeof(cache->Iref));
+    memcpy(cache->Dref, Dref, sizeof(cache->Dref));
+    memcpy(cache->Vref, Vref, sizeof(cache->Vref));
 
-        slam->cache.I_u
-#endif
+    memcpy(cache->I, I, sizeof(cache->I));
+    gradx(cache->I_u, I);
+    grady(cache->I_v, I);
 }
 
