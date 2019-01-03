@@ -170,15 +170,25 @@ precompute_T(float A[3][3], float b[3], float rho, float n[3], float theta, floa
     }
 }
 
-/* Ax + b = K(sRx + t) */
+/* Ax + b = sK(RK^-1x + t) */
 void
-precompute_KT(float A[3][3], float b[3],
+precompute_KTKinv(float A[3][3], float b[3],
         float K[3][3], float rho, float n[3], float theta, float t[3])
 {
     float _A[3][3];
+    float _B[3][3];
     float _b[3];
+    float Kinv[3][3];
+    inv3x3(Kinv, K);
+
+    /* _A = sR, _b = t */
     precompute_T(_A, _b, rho, n, theta, t);
-    mul3x3(A, K, _A);
+
+    /* _B = sRK^-1 */
+    mul3x3(_B, _A, Kinv);
+
+    /* A = sKRK^-1, b = Kt */
+    mul3x3(A, K, _B);
     mulmv3d(b, K, _b);
 }
 

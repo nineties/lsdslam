@@ -188,7 +188,7 @@ def test_T():
             A.dot(x) + b
             )
 
-def test_KT():
+def test_KTKinv():
     x = random_vec(3)
     n = random_norm(3)
     t = random_vec(3)
@@ -196,9 +196,9 @@ def test_KT():
     rho = np.random.randn()
     K = np.random.randn(3, 3).astype(np.float32)
 
-    A, b = L.precompute_KT(K, rho, n, theta, t)
+    A, b = L.precompute_KTKinv(K, rho, n, theta, t)
     assert_allclose(
-            K.dot(T(rho, n, theta, t, x).flatten()),
+            K.dot(T(rho, n, theta, t, np.linalg.inv(K).dot(x)).flatten()),
             A.dot(x) + b
             )
 

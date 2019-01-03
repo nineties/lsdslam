@@ -54,10 +54,11 @@ def precompute_T(rho, n, theta, t):
     lib.precompute_T(_fp(A), _fp(b), c_float(rho), _fp(n), c_float(theta), _fp(t))
     return A, b
 
-def precompute_KT(K, rho, n, theta, t):
+def precompute_KTKinv(K, rho, n, theta, t):
     A = np.zeros((3, 3), dtype=np.float32)
     b = np.zeros(3, dtype=np.float32)
-    lib.precompute_KT(_fp(A), _fp(b), _fp(K), c_float(rho), _fp(n), c_float(theta), _fp(t))
+    lib.precompute_KTKinv(
+            _fp(A), _fp(b), _fp(K), c_float(rho), _fp(n), c_float(theta), _fp(t))
     return A, b
 
 def pi(x):
