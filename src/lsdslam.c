@@ -393,8 +393,8 @@ huber_r(float delta, float r)
 
 EXPORT void
 precompute_cache(
-        struct lsdslam_param *param,
-        struct lsdslam_cache *cache,
+        struct param *param,
+        struct cache *cache,
         float Iref[HEIGHT][WIDTH],
         float Dref[HEIGHT][WIDTH],
         float Vref[HEIGHT][WIDTH],
@@ -452,7 +452,7 @@ precompute_cache(
 // *res will be NaN for out-bound error.
 EXPORT int
 photometric_residual(
-        struct lsdslam_cache *cache,
+        struct cache *cache,
         float *rp, float *wp, float J[8],
         int u_ref, int v_ref)
 {
@@ -535,8 +535,8 @@ photometric_residual(
 /* Compute E_p, g = nabla E_p, H = nabla^2 E_p */
 EXPORT void
 photometric_residual_over_frame(
-        struct lsdslam_param *param,
-        struct lsdslam_cache *cache,
+        struct param *param,
+        struct cache *cache,
         float *E, float g[9], float H[9][9]
         )
 {
@@ -582,3 +582,22 @@ photometric_residual_over_frame(
     }
 }
 
+EXPORT void
+normalize_image(float y[HEIGHT][WIDTH], unsigned char x[HEIGHT][WIDTH])
+{
+    for (int i = 0; i < HEIGHT; i++) {
+        for (int j = 0; j < WIDTH; j++) {
+            y[i][j] = x[i][j]/255.0;
+        }
+    }
+}
+
+/**** Tracking ****/
+void
+tracker_init(
+        struct tracker *tracker,
+        unsigned char image[HEIGHT][WIDTH]
+        )
+{
+    normalize_image(tracker->keyframe.I, image);
+}

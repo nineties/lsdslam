@@ -12,7 +12,13 @@
 #define EXPORT static
 #endif
 
-struct lsdslam_cache {
+struct keyframe {
+    float I[HEIGHT][WIDTH];
+    float D[HEIGHT][WIDTH];
+    float V[HEIGHT][WIDTH];
+};
+
+struct cache {
     bool  mask[HEIGHT][WIDTH];
 
     /* keyframe */
@@ -33,19 +39,21 @@ struct lsdslam_cache {
     float sKR_thetaKinv[3][3];
 };
 
-struct lsdslam_param {
+struct param {
     float mask_thresh;  /* use points which satisfy ||nabla I|| > mask_thresh */
     float huber_delta;  /* huber-norm */
+    float K[3][3];      /* camera matrix */
 };
 
-struct lsdslam_tracker {
-    struct lsdslam_param param;
-    struct lsdslam_cache cache;
+struct tracker {
+    struct param param;
+    struct cache cache;
+    struct keyframe keyframe;
 };
 
-struct lsdslam_mapper {
-    struct lsdslam_param param;
-    struct lsdslam_cache cache;
+struct mapper {
+    struct param param;
+    struct cache cache;
 };
 
 #endif

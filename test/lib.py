@@ -103,7 +103,8 @@ def solve(A, b):
 class Param(Structure):
     _fields_ = [
             ('mask_thresh', c_float),
-            ('huber_delta', c_float)
+            ('huber_delta', c_float),
+            ('K', c_float * 3 * 3)
             ]
 
 class Cache(Structure):
