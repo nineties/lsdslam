@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <math.h>
+#include "lsdslam.h"
 
 /* matrix-vector multiplication */
 void
