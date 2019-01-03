@@ -6,7 +6,7 @@
 #define WIDTH   240
 #define HEIGHT  180
 
-struct compute_cache {
+struct lsdslam_cache {
     bool  mask[HEIGHT][WIDTH];
 
     /* keyframe */
@@ -27,14 +27,14 @@ struct compute_cache {
     float sKR_thetaKinv[3][3];
 };
 
-struct param {
+struct lsdslam_param {
     float mask_thresh;  /* use points which satisfy ||nabla I|| > mask_thresh */
     float huber_delta;  /* huber-norm */
 };
 
 struct lsdslam {
-    struct param param;
-    struct compute_cache cache;
+    struct lsdslam_param param;
+    struct lsdslam_cache cache;
 };
 
 #endif

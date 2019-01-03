@@ -154,3 +154,10 @@ def photometric_residual(slam, p):
     J = np.zeros(8, dtype=np.float32)
     lib.photometric_residual(byref(slam), byref(res), byref(w), _fp(J), c_int(u), c_int(v))
     return res.value, J, w.value
+
+def photometric_residual_over_frame(slam):
+    E = c_float()
+    g = np.zeros(9, dtype=np.float32)
+    H = np.zeros((9, 9), dtype=np.float32)
+    lib.photometric_residual_over_frame(byref(slam), byref(E), _fp(g), _fp(H))
+    return E, g, H

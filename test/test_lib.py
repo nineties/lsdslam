@@ -327,3 +327,25 @@ def test_photometric_residual():
     if not np.isnan(rp1):
         assert_allclose(J1, J2, rtol=1e-1)
         assert_allclose(w1, w2)
+
+def test_photometric_residual_over_frame():
+    I = read_image('test/I.png')
+    Iref = read_image('test/Iref.png')
+    Dref = read_image('test/Dref.png')
+    Vref = np.ones_like(Iref)
+
+    t = random_vec(3)*0.01
+    n = random_norm(3)
+    theta = 0.001
+    rho = 1.1
+    K = (np.eye(3) + np.random.randn(3, 3)*1e-5).astype(np.float32)
+
+    slam = L.LSDSLAMStruct()
+    slam.param.mask_thresh = 20
+    slam.param.huber_delta = 3
+    L.precompute_cache(
+        slam,
+        Iref, Dref, Vref, I,
+        K, rho, n, theta, t
+        )
+    L.photometric_residual_over_frame(slam)

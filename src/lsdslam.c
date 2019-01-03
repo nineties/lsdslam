@@ -419,7 +419,7 @@ precompute_cache(
         float t[3]
         )
 {
-    struct compute_cache *cache = &slam->cache;
+    struct lsdslam_cache *cache = &slam->cache;
     create_mask(cache->mask, Iref, slam->param.mask_thresh);
 
     memcpy(cache->Iref, Iref, sizeof(cache->Iref));
@@ -464,12 +464,12 @@ precompute_cache(
 
 // Compute photometric residual, derivative wrt xi and weight.
 // *res will be NaN for out-bound error.
-void
+int
 photometric_residual(struct lsdslam *slam,
         float *rp, float *wp, float J[8],
         int u_ref, int v_ref)
 {
-    struct compute_cache *cache = &slam->cache;
+    struct lsdslam_cache *cache = &slam->cache;
     float p_ref[2] = {u_ref, v_ref};
     float x[3];
     float y[3];
@@ -484,7 +484,7 @@ photometric_residual(struct lsdslam *slam,
 
     if (u < 0 || u >= HEIGHT || v < 0 || v >= WIDTH) {
         *rp = NAN;
-        return;
+        return -1;
     }
 
     *rp = cache->Iref[u_ref][v_ref] - cache->I[u][v];
@@ -542,5 +542,57 @@ photometric_residual(struct lsdslam *slam,
     piinv_d(piinv_Dref, p_ref, cache->Dref[u_ref][v_ref]);
     float I_Dref = I_x[0]*piinv_Dref[0] + I_x[1]*piinv_Dref[1] + I_x[2]*piinv_Dref[2];
 
-    *w = 1/(2*cache->Ivar + square(I_Dref) * cache->Vref[u_ref][v_ref]);
+    *wp = 1/(2*cache->Ivar + square(I_Dref) * cache->Vref[u_ref][v_ref]);
+    return 0;
+}
+
+/* Compute E_p, g = nabla E_p, H = nabla^2 E_p */
+void
+photometric_residual_over_frame(
+        struct lsdslam *slam,
+        float *E, float g[9], float H[9][9]
+        )
+{
+    struct lsdslam_cache *cache = &slam->cache;
+    struct lsdslam_param *param = &slam->param;
+    int N = 0;
+
+    *E = 0;
+    memset(g, 0, sizeof(float)*9);
+    memset(H, 0, sizeof(float)*81);
+
+    float rp;
+    float wp;
+    float J[8];
+    for (int u = 0; u < HEIGHT; u++) {
+        for (int v = 0; v < WIDTH; v++) {
+            if (!cache->mask[u][v])
+                continue;
+
+            if (photometric_residual(slam, &rp, &wp, J, u, v) < 0)
+                continue;
+
+            *E += wp * huber(param->huber_delta, rp);
+
+            for (int i = 0; i < 8; i++)
+                g[i] += wp * huber_r(param->huber_delta, rp) * J[i];
+
+            if (fabs(rp) < param->huber_delta) {
+                for (int i = 0; i < 8; i++) {
+                    for (int j = 0; j < 8; j++)
+                        H[i][j] += wp*J[i]*J[j];
+                }
+            }
+
+            N++;
+        }
+    }
+
+    *E /= N;
+    for (int i = 0; i < 8; i++)
+        g[i] /= N;
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++)
+            H[i][j] /= N * param->huber_delta;
+    }
 }
