@@ -361,10 +361,10 @@ precompute_cache(
     mul3x3_twice(cache->sKR_nKinv[2], K, sR_n[2], Kinv);
 
     float sR_theta[3][3] = {0};
+    compute_R_theta(sR_theta, n, theta);
     for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
             sR_theta[i][j] *= s;
-    compute_R_theta(sR_theta, n, theta);
     mul3x3_twice(cache->sKR_thetaKinv, K, sR_theta, Kinv);
 }
 
