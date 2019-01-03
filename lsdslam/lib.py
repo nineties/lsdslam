@@ -80,10 +80,25 @@ def piinv_d(p, d):
     lib.piinv_d(_fp(y), _fp(p), c_float(d))
     return y
 
-def gaussian_filter_3x3(I):
+def filter3x3(K, I):
     y = np.zeros_like(I)
-    lib.gaussian_filter_3x3(_fp(y), _fp(I))
+    lib.filter3x3(_fp(y), _fp(K), _fp(I))
     return y
+
+def gaussian_filter3x3(I):
+    y = np.zeros_like(I)
+    lib.gaussian_filter3x3(_fp(y), _fp(I))
+    return y
+
+def sobel_filter3x3(I):
+    y = np.zeros_like(I)
+    lib.sobel_filter3x3(_fp(y), _fp(I))
+    return y
+
+class Param(Structure):
+    _fields_ = [
+            ('mask_thresh', c_float)
+            ]
 
 class ComputeCache(Structure):
     _fields_ = [
@@ -93,11 +108,17 @@ class ComputeCache(Structure):
             ('Vref', c_float * WIDTH * HEIGHT)
             ]
 
+class LSDSLAMStruct(Structure):
+    _fields_ = [
+            ('param', Param),
+            ('cache', ComputeCache)
+            ]
+
 def precompute_cache(
         Iref, Dref, Vref
         ):
-    cache = ComputeCache()
+    slam = LSDSLAMStruct()
     lib.precompute_cache(
-            byref(cache),
+            byref(slam),
             _fp(Iref), _fp(Dref), _fp(Vref)
             )

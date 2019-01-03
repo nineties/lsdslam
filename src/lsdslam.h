@@ -20,4 +20,13 @@ struct compute_cache {
     float I_y[HEIGHT][WIDTH];
 };
 
+struct param {
+    float mask_thresh;
+};
+
+struct lsdslam {
+    struct param param;
+    struct compute_cache cache;
+};
+
 #endif

@@ -8,8 +8,8 @@ import lsdslam.lib as L
 
 # Utilities
 
-def assert_allclose(x, y):
-    np.testing.assert_allclose(x, y, rtol=1e-2)
+def assert_allclose(x, y, rtol=1e-3, atol=0):
+    np.testing.assert_allclose(x, y, rtol=rtol, atol=atol)
 
 def repeat(n):
     def decorate(f):
@@ -235,14 +235,21 @@ def test_piinv_d():
             L.piinv_d(x, d)
             )
 
+def test_filter3x3():
+    I = read_image('test/I.png')/255.
+    K = np.random.randn(3, 3).astype(np.float32)
+
+    assert_allclose(convolve2d(I, K, mode='same'), L.filter3x3(K, I),
+            rtol=0, atol=1e-5)
+
 def test_gaussian_filter():
-    I = read_image('test/I.png')
+    I = read_image('test/I.png')/255.
     assert_allclose(
             convolve2d(I,
                 [[1/9., 1/9., 1/9.],
                  [1/9., 1/9., 1/9.],
                  [1/9., 1/9., 1/9.]], mode='same'),
-            L.gaussian_filter_3x3(I)
+            L.gaussian_filter3x3(I)
             )
 
 def test_rp():

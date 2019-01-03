@@ -3,6 +3,12 @@
 #include <math.h>
 #include "lsdslam.h"
 
+static inline float
+square(float x)
+{
+    return x*x;
+}
+
 int
 get_imagewidth(void)
 {
@@ -213,33 +219,86 @@ piinv_d(float y[3], float x[2], float d)
 }
 
 void
-gaussian_filter_3x3(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
+filter3x3(float y[HEIGHT][WIDTH], float k[3][3], float x[HEIGHT][WIDTH])
+{
+    float pad_x[HEIGHT+2][WIDTH+2] = {0};
+
+    for (int i = 0; i < HEIGHT; i++) {
+        for (int j = 0; j < WIDTH; j++)
+            pad_x[i+1][j+1] = x[i][j];
+    }
+
+    for (int i = 0; i < HEIGHT; i++) {
+        for (int j = 0; j < WIDTH; j++) {
+            float s = 0;
+            for (int u = 0; u < 3; u++) {
+                for (int v = 0; v < 3; v++) {
+                    s += k[2-u][2-v]*pad_x[i+u][j+v];
+                }
+            }
+            y[i][j] = s;
+        }
+    }
+}
+
+void
+gaussian_filter3x3(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
+{
+    float k[3][3] = {
+        {1/9., 1/9., 1/9.},
+        {1/9., 1/9., 1/9.},
+        {1/9., 1/9., 1/9.},
+    };
+    filter3x3(y, k, x);
+}
+
+void
+sobel_filter3x3(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
+{
+    float kx[3][3] = {
+        {1., 0., 1.},
+        {2., 0.,-2.},
+        {1., 0., 1.},
+    };
+    float ky[3][3] = {
+        {1., 2., 1.},
+        {0., 0., 0.},
+        {1.,-2., 1.},
+    };
+    float tx[HEIGHT][WIDTH];
+    float ty[HEIGHT][WIDTH];
+    filter3x3(tx, kx, x);
+    filter3x3(ty, ky, x);
+    for (int i = 0; i < HEIGHT; i++) {
+        for (int j = 0; j < WIDTH; j++) {
+            y[i][j] = sqrtf(tx[i][j]*tx[i][j] + ty[i][j]*ty[i][j]);
+        }
+    }
+}
+
+void
+create_mask(bool mask[HEIGHT][WIDTH], float I[HEIGHT][WIDTH], float thresh)
 {
     float t[HEIGHT][WIDTH];
+    sobel_filter3x3(t, I);
     for (int i = 0; i < HEIGHT; i++) {
-        t[i][0] = (x[i][0] + x[i][1])/9;
-        for (int j = 1; j < WIDTH-1; j++)
-            t[i][j] = (x[i][j-1] + x[i][j] + x[i][j+1])/9;
-        t[i][WIDTH-1] = (x[i][WIDTH-2] + x[i][WIDTH-1])/9;
-    }
-    for (int j = 0; j < WIDTH; j++) {
-        y[0][j] = t[0][j] + t[1][j];
-        for (int i = 1; i < HEIGHT-1; i++)
-            y[i][j] = t[i-1][j] + t[i][j] + t[i+1][j];
-        y[HEIGHT-1][j] = t[HEIGHT-2][j] + t[HEIGHT-1][j];
+        for (int j = 0; j < WIDTH; j++) {
+            mask[i][j] = t[i][j] > thresh;
+        }
     }
 }
 
 void
 precompute_cache(
-        struct compute_cache *cache,
+        struct lsdslam *slam,
         float Iref[HEIGHT][WIDTH],
         float Dref[HEIGHT][WIDTH],
         float Vref[HEIGHT][WIDTH]
         )
 {
-    memcpy(cache->Iref, Iref, sizeof(cache->Iref));
-    memcpy(cache->Dref, Dref, sizeof(cache->Dref));
-    memcpy(cache->Vref, Vref, sizeof(cache->Vref));
+    memcpy(slam->cache.Iref, Iref, sizeof(slam->cache.Iref));
+    memcpy(slam->cache.Dref, Dref, sizeof(slam->cache.Dref));
+    memcpy(slam->cache.Vref, Vref, sizeof(slam->cache.Vref));
+    create_mask(slam->cache.mask, Iref, slam->param.mask_thresh);
 }
 
