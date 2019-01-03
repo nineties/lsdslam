@@ -162,3 +162,22 @@ precompute_KT(float A[3][3], float b[3],
     mul3x3(A, K, _A);
     mulmv3d(b, K, _b);
 }
+
+/**** Projection to camera plane ****/
+void
+pi(float y[2], float x[3])
+{
+    y[0] = x[0]/x[2];
+    y[1] = x[1]/x[2];
+}
+
+void
+pi_x(float y[2][3], float x[3])
+{
+    y[0][0] = 1/x[2];
+    y[0][1] = 0;
+    y[0][2] = -x[0]/(x[2]*x[2]);
+    y[1][0] = 0;
+    y[1][1] = 1/x[2];
+    y[1][2] = -x[1]/(x[2]*x[2]);
+}

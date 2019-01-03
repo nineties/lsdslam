@@ -5,7 +5,8 @@ from util import assert_allclose, repeat, random_vec, random_norm
 import lsdslam.lib as L
 
 # Formulas
-x = Matrix(symbols('x1 x2 x3')) # 3d point
+x1, x2, x3 = symbols('x1 x2 x3')
+x = Matrix([x1, x2, x3])        # 3d point
 p = Matrix(symbols('u v'))      # 2d point
 n1, n2, n3 = symbols('n1 n2 n3')
 n = Matrix([n1, n2, n3])        # axis of rotation
@@ -48,6 +49,16 @@ def T_formula(rho, n, theta, t, x):
 
 T = lambdify((rho, n, theta, t, x), T_formula(rho, n, theta, t, x))
 
+def pi_formula(x1, x2, x3):
+    return Matrix([x1/x3, x2/x3])
+
+pi = lambdify((x,), pi_formula(x1, x2, x3))
+
+def pi_x_formula(x1, x2, x3):
+    f = pi_formula(x1, x2, x3)
+    return diff(f, x1).row_join(diff(f, x2)).row_join(diff(f, x3))
+
+pi_x = lambdify((x,), pi_x_formula(x1, x2, x3))
 
 @repeat(100)
 def test_R():
@@ -119,4 +130,22 @@ def test_KT():
     assert_allclose(
             K.dot(T(rho, n, theta, t, x).flatten()),
             A.dot(x) + b
+            )
+
+@repeat(100)
+def test_pi():
+    x = random_vec(3)
+
+    assert_allclose(
+            pi(x).flatten(),
+            L.pi(x)
+            )
+
+@repeat(100)
+def test_pi_x():
+    x = random_vec(3)
+
+    assert_allclose(
+            pi_x(x),
+            L.pi_x(x)
             )
