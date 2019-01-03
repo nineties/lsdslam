@@ -1,7 +1,7 @@
 import numpy as np
 from sympy import Matrix, symbols, diff, simplify, lambdify, transpose, cos, sin, exp, eye
 
-from util import assert_allclose, repeat, random_vec, random_norm, read_image
+from util import assert_allclose, random_vec, random_norm, read_image
 import lsdslam.lib as L
 
 # Formulas
@@ -60,7 +60,6 @@ def pi_x_formula(x1, x2, x3):
 
 pi_x = lambdify((x,), pi_x_formula(x1, x2, x3))
 
-@repeat(100)
 def test_R():
     n = random_norm(3)
     theta = np.random.randn()
@@ -70,7 +69,6 @@ def test_R():
             L.R(n, theta)
             )
 
-@repeat(100)
 def test_R_theta():
     n = random_norm(3)
     theta = np.random.randn()
@@ -80,7 +78,6 @@ def test_R_theta():
             L.R_theta(n, theta)
             )
 
-@repeat(100)
 def test_R_n():
     n = random_norm(3)
     theta = np.random.randn()
@@ -90,7 +87,6 @@ def test_R_n():
     for i in range(3):
         assert_allclose(R_n[i](n, theta), A[i])
 
-@repeat(100)
 def test_rotate_n():
     n = random_norm(3)
     x = random_vec(3)
@@ -103,7 +99,6 @@ def test_rotate_n():
             A[i].dot(x)
             )
 
-@repeat(100)
 def test_T():
     x = random_vec(3)
     n = random_norm(3)
@@ -117,7 +112,6 @@ def test_T():
             A.dot(x) + b
             )
 
-@repeat(100)
 def test_KT():
     x = random_vec(3)
     n = random_norm(3)
@@ -132,7 +126,6 @@ def test_KT():
             A.dot(x) + b
             )
 
-@repeat(100)
 def test_pi():
     x = random_vec(3)
 
@@ -141,7 +134,6 @@ def test_pi():
             L.pi(x)
             )
 
-@repeat(100)
 def test_pi_x():
     x = random_vec(3)
 
