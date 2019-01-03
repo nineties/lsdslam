@@ -5,7 +5,7 @@ from scipy.signal import convolve2d
 from scipy.ndimage import sobel
 from PIL import Image
 
-import lsdslam.lib as L
+import lib as L
 
 # Utilities
 
