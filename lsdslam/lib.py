@@ -1,5 +1,5 @@
 import numpy as np
-from ctypes import cdll, c_int, c_float, POINTER
+from ctypes import cdll, c_bool, c_int, c_float, POINTER, Structure, byref
 
 lib = cdll.LoadLibrary('src/liblsdslam.so')
 
@@ -7,7 +7,9 @@ lib.get_imagewidth.restype = c_int
 lib.get_imageheight.restype = c_int
 
 # Image size
-size = (lib.get_imagewidth(), lib.get_imageheight())
+WIDTH = lib.get_imagewidth()
+HEIGHT = lib.get_imageheight()
+SIZE = (WIDTH, HEIGHT)
 
 def _fp(arr):
     return arr.ctypes.data_as(POINTER(c_float))
@@ -77,3 +79,20 @@ def piinv_d(p, d):
     y = np.zeros(3, dtype=np.float32)
     lib.piinv_d(_fp(y), _fp(p), c_float(d))
     return y
+
+class ComputeCache(Structure):
+    _fields_ = [
+            ('mask', c_bool * WIDTH * HEIGHT),
+            ('Iref', c_float * WIDTH * HEIGHT),
+            ('Dref', c_float * WIDTH * HEIGHT),
+            ('Vref', c_float * WIDTH * HEIGHT)
+            ]
+
+def precompute_cache(
+        Iref, Dref, Vref
+        ):
+    cache = ComputeCache()
+    lib.precompute_cache(
+            byref(cache),
+            _fp(Iref), _fp(Dref), _fp(Vref)
+            )

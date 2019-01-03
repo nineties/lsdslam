@@ -1,8 +1,64 @@
+import time
 import numpy as np
 from sympy import Matrix, symbols, diff, simplify, lambdify, transpose, cos, sin, exp, eye
+from PIL import Image
 
-from util import assert_allclose, random_vec, random_norm, read_image
 import lsdslam.lib as L
+
+# Utilities
+
+def assert_allclose(x, y):
+    np.testing.assert_allclose(x, y, rtol=1e-2)
+
+def repeat(n):
+    def decorate(f):
+        def newfunc(*args, **kw):
+            for i in range(n):
+                f(*args, **kw)
+        return make_decorator(f)(newfunc)
+    return decorate
+
+def random_vec(n):
+    return np.random.randn(n).astype(np.float32)
+
+def random_norm(n):
+    v = random_vec(n)
+    return v/np.sqrt(v.dot(v))
+
+def read_image(path):
+    return np.asarray(Image.open(path).convert('P').resize(L.SIZE), dtype=np.float32)
+
+def test_mul3x3():
+    A = np.random.randn(3, 3).astype(np.float32)
+    B = np.random.randn(3, 3).astype(np.float32)
+    assert_allclose(
+        A.dot(B),
+        L.mul3x3(A, B)
+        )
+
+def test_det3x3():
+    A = np.random.randn(3, 3).astype(np.float32)
+    assert_allclose(
+        np.linalg.det(A),
+        L.det3x3(A)
+        )
+
+def test_inv3x3():
+    A = np.random.randn(3, 3).astype(np.float32)
+    assert_allclose(
+        np.linalg.inv(A),
+        L.inv3x3(A)
+        )
+
+def test_affine3d():
+    A = np.random.randn(3, 3).astype(np.float32)
+    b = random_vec(3)
+    x = random_vec(3)
+
+    assert_allclose(
+        A.dot(x) + b,
+        L.affine3d(A, b, x)
+        )
 
 #==== Formulas ====
 x1, x2, x3 = symbols('x1 x2 x3')
@@ -178,7 +234,30 @@ def test_piinv_d():
             L.piinv_d(x, d)
             )
 
-def test_photometric_residual():
+def test_rp():
     I = read_image('test/I.png')
     Iref = read_image('test/Iref.png')
     Dref = read_image('test/Dref.png')
+    Vref = np.ones_like(Dref)
+
+    t = random_norm(3)
+    n = random_norm(3)
+    theta = 0.1
+    rho = np.random.randn()
+    K = np.random.randn(3, 3).astype(np.float32)
+
+    p = (50, 50)
+
+    start = time.time()
+    x1 = np.linalg.inv(K).dot(piinv(p, Dref[p])).flatten()
+    x2 = T(rho, n, theta, t, x1).flatten()
+    u, v = pip(K.dot(x2)).flatten()
+    rp1 = Iref[p] - I[int(u), int(v)]
+    print('python {}s'.format(time.time() - start))
+
+    cache = L.precompute_cache(
+            Iref, Dref, Vref
+            )
+    #r2 = L.rp(cache, p)
+
+    #assert_allclose(rp1, rp2)

@@ -7,11 +7,12 @@
 #define HEIGHT  180
 
 struct compute_cache {
+    bool  mask[HEIGHT][WIDTH];
+
     /* keyframe */
     float Iref[HEIGHT][WIDTH];
     float Dref[HEIGHT][WIDTH];
     float Vref[HEIGHT][WIDTH];
-    bool  Mref[HEIGHT][WIDTH];
 
     /* current frame */
     float I[HEIGHT][WIDTH];

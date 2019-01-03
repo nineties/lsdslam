@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <math.h>
 #include "lsdslam.h"
 
@@ -210,3 +211,35 @@ piinv_d(float y[3], float x[2], float d)
     y[1] = -x[1]/(d*d);
     y[2] = -1/(d*d);
 }
+
+void
+gaussian_filter_3x3(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
+{
+    float t[HEIGHT][WIDTH];
+    for (int i = 0; i < HEIGHT; i++) {
+        t[i][0] = (x[i][0] + x[i][1])/9;
+        for (int j = 1; j < WIDTH-1; j++)
+            t[i][j] = (x[i][j-1] + x[i][j] + x[i][j+1])/9;
+        t[i][WIDTH-1] = (x[i][WIDTH-2] + x[i][WIDTH-1])/9;
+    }
+    for (int j = 0; j < WIDTH; j++) {
+        y[0][j] = (t[0][j] + t[1][j])/9;
+        for (int i = 1; i < HEIGHT-1; i++)
+            y[i][j] = (t[i-1][j] + t[i][j] + t[i+1][j])/9;
+        y[HEIGHT-1][j] = (t[HEIGHT-2][j] + t[HEIGHT-1][j])/9;
+    }
+}
+
+void
+precompute_cache(
+        struct compute_cache *cache,
+        float Iref[HEIGHT][WIDTH],
+        float Dref[HEIGHT][WIDTH],
+        float Vref[HEIGHT][WIDTH]
+        )
+{
+    memcpy(cache->Iref, Iref, sizeof(cache->Iref));
+    memcpy(cache->Dref, Dref, sizeof(cache->Dref));
+    memcpy(cache->Vref, Vref, sizeof(cache->Vref));
+}
+
