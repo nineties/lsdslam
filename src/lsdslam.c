@@ -49,6 +49,14 @@ mul3x3(float y[3][3], float a[3][3], float b[3][3])
     }
 }
 
+void
+mul3x3_twice(float y[3][3], float a[3][3], float b[3][3], float c[3][3])
+{
+    float t[3][3];
+    mul3x3(t, b, c);
+    mul3x3(y, a, t);
+}
+
 /* determinant of 3x3 matrix */
 float
 det3x3(float x[3][3])
@@ -177,7 +185,6 @@ precompute_tau(float A[3][3], float b[3],
         float K[3][3], float rho, float n[3], float theta, float t[3])
 {
     float _A[3][3];
-    float _B[3][3];
     float _b[3];
     float Kinv[3][3];
     inv3x3(Kinv, K);
@@ -185,11 +192,7 @@ precompute_tau(float A[3][3], float b[3],
     /* _A = sR, _b = t */
     precompute_T(_A, _b, rho, n, theta, t);
 
-    /* _B = sRK^-1 */
-    mul3x3(_B, _A, Kinv);
-
-    /* A = sKRK^-1, b = Kt */
-    mul3x3(A, K, _B);
+    mul3x3_twice(A, K, _A, Kinv);
     mulmv3d(b, K, _b);
 }
 
