@@ -115,6 +115,8 @@ class ComputeCache(Structure):
             ('I',   c_float * WIDTH * HEIGHT),
             ('I_u', c_float * WIDTH * HEIGHT),
             ('I_v', c_float * WIDTH * HEIGHT),
+            ('KTKinv_A', c_float * 3 * 3),
+            ('KTKinv_b', c_float * 3)
             ]
 
 class LSDSLAMStruct(Structure):
@@ -125,15 +127,17 @@ class LSDSLAMStruct(Structure):
 
 def precompute_cache(
         slam,
-        Iref, Dref, Vref,
-        I
+        Iref, Dref, Vref, I,
+        K, rho, n, theta, t
         ):
     lib.precompute_cache(
             byref(slam),
-            _fp(Iref), _fp(Dref), _fp(Vref), _fp(I)
+            _fp(Iref), _fp(Dref), _fp(Vref), _fp(I),
+            _fp(K), c_float(rho), _fp(n), c_float(theta), _fp(t)
             )
 
 # Photometric Residual
+lib.photometric_residual.restype = c_float
 def rp(slam, p):
     u, v = p
-    pass
+    return lib.photometric_residual(byref(slam), c_int(u), c_int(v))

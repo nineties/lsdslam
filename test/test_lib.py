@@ -273,31 +273,28 @@ def test_rp():
     Dref = read_image('test/Dref.png')
     Vref = np.ones_like(Dref)
 
-    t = random_norm(3)
+    t = random_norm(3)*0.01
     n = random_norm(3)
-    theta = 0.1
-    rho = np.random.randn()
-    K = np.random.randn(3, 3).astype(np.float32)
+    theta = 0.01
+    rho = 1.1
+    K = (np.eye(3) + np.random.randn(3, 3)*1e-5).astype(np.float32)
 
-    p = (50, 50)
+    p_ref = (50, 50)
 
-    start = time.time()
-    x1 = np.linalg.inv(K).dot(piinv(p, Dref[p])).flatten()
-    x2 = T(rho, n, theta, t, x1).flatten()
-    u, v = pip(K.dot(x2)).flatten()
-    rp1 = Iref[p] - I[int(u), int(v)]
-    print('python {}ms'.format((time.time() - start)*1000))
+    x_ref = np.linalg.inv(K).dot(piinv(p_ref, Dref[p_ref])).flatten()
+    x = T(rho, n, theta, t, x_ref).flatten()
+    u, v = pip(K.dot(x)).flatten()
+    if u < 0 or u >= I.shape[0] or v < 0 or v >= I.shape[1]:
+        rp1 = 0
+    else:
+        rp1 = Iref[p_ref] - I[int(u), int(v)]
 
     slam = L.LSDSLAMStruct()
-    start = time.time()
     L.precompute_cache(
         slam,
-        Iref, Dref, Vref,
-        I
+        Iref, Dref, Vref, I,
+        K, rho, n, theta, t
         )
-    print('prep {}ms'.format((time.time() - start)*1000))
-    start = time.time()
-    rp2 = L.rp(slam, p)
-    print('C {}ms'.format((time.time() - start)*1000))
+    rp2 = L.rp(slam, p_ref)
 
-    #assert_allclose(rp1, rp2)
+    assert_allclose(rp1, rp2)

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <sys/time.h>
 #include "lsdslam.h"
 
 static inline float
@@ -303,7 +304,12 @@ precompute_cache(
         float Iref[HEIGHT][WIDTH],
         float Dref[HEIGHT][WIDTH],
         float Vref[HEIGHT][WIDTH],
-        float I[HEIGHT][WIDTH]
+        float I[HEIGHT][WIDTH],
+        float K[3][3],
+        float rho,
+        float n[3],
+        float theta,
+        float t[3]
         )
 {
     struct compute_cache *cache = &slam->cache;
@@ -314,7 +320,31 @@ precompute_cache(
     memcpy(cache->Vref, Vref, sizeof(cache->Vref));
 
     memcpy(cache->I, I, sizeof(cache->I));
-    gradx(cache->I_u, I);
-    grady(cache->I_v, I);
+    gradu(cache->I_u, I);
+    gradv(cache->I_v, I);
+
+    precompute_KTKinv(cache->KTKinv_A, cache->KTKinv_b, K, rho, n, theta, t);
 }
 
+float
+photometric_residual(struct lsdslam *slam, int u_ref, int v_ref)
+{
+    struct compute_cache *cache = &slam->cache;
+    float p_ref[2] = {u_ref, v_ref};
+    float d = cache->Dref[u_ref][v_ref];
+    float x_ref[3];
+    float x[3];
+    float p[3];
+
+    piinv(x_ref, p_ref, d);
+    affine3d(x, cache->KTKinv_A, cache->KTKinv_b, x_ref);
+    pi(p, x);
+
+    int u = (int)p[0];
+    int v = (int)p[1];
+
+    if (u < 0 || u >= HEIGHT || v < 0 || v >= WIDTH)
+        return 0.0;
+
+    return cache->Iref[u_ref][v_ref] - cache->I[u][v];
+}
