@@ -2,6 +2,7 @@ import time
 import numpy as np
 from sympy import Matrix, symbols, diff, simplify, lambdify, transpose, cos, sin, exp, eye
 from scipy.signal import convolve2d
+from scipy.ndimage import sobel
 from PIL import Image
 
 import lsdslam.lib as L
@@ -249,7 +250,18 @@ def test_gaussian_filter():
                 [[1/9., 1/9., 1/9.],
                  [1/9., 1/9., 1/9.],
                  [1/9., 1/9., 1/9.]], mode='same'),
-            L.gaussian_filter3x3(I)
+            L.gaussian_filter3x3(I),
+            rtol=0, atol=1e-5
+            )
+
+def test_sobel_filter():
+    I = read_image('test/I.png')/255.
+    sx = sobel(I, axis=0, mode='constant')
+    sy = sobel(I, axis=1, mode='constant')
+    assert_allclose(
+            np.sqrt(sx**2 + sy**2),
+            L.sobel_filter3x3(I),
+            rtol=0, atol=1e-5
             )
 
 def test_rp():

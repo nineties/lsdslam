@@ -256,14 +256,14 @@ void
 sobel_filter3x3(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
 {
     float kx[3][3] = {
-        {1., 0., 1.},
-        {2., 0.,-2.},
-        {1., 0., 1.},
+        {1., 0., -1.},
+        {2., 0., -2.},
+        {1., 0., -1.},
     };
     float ky[3][3] = {
-        {1., 2., 1.},
-        {0., 0., 0.},
-        {1.,-2., 1.},
+        { 1.,  2.,  1.},
+        { 0.,  0.,  0.},
+        {-1., -2., -1.},
     };
     float tx[HEIGHT][WIDTH];
     float ty[HEIGHT][WIDTH];
