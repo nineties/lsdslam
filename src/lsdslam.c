@@ -399,7 +399,6 @@ precompute_cache(
         float Dref[HEIGHT][WIDTH],
         float Vref[HEIGHT][WIDTH],
         float I[HEIGHT][WIDTH],
-        float K[3][3],
         float rho,
         float n[3],
         float theta,
@@ -418,7 +417,7 @@ precompute_cache(
     cache->Ivar = variance(I);
 
     float Kinv[3][3] = {0};
-    inv3x3(Kinv, K);
+    inv3x3(Kinv, param->K);
 
     float sR[3][3] = {0};
     float s = expf(rho);
@@ -427,8 +426,8 @@ precompute_cache(
         for (int j = 0; j < 3; j++)
             sR[i][j] *= s;
 
-    mul3x3_twice(cache->sKRKinv, K, sR, Kinv);
-    mulmv3d(cache->Kt, K, t);
+    mul3x3_twice(cache->sKRKinv, param->K, sR, Kinv);
+    mulmv3d(cache->Kt, param->K, t);
 
     float sR_n[3][3][3] = {0};
     compute_R_n(sR_n, n, theta);
@@ -436,16 +435,16 @@ precompute_cache(
         for (int j = 0; j < 3; j++)
             for (int k = 0; k < 3; k++)
                 sR_n[i][j][k] *= s;
-    mul3x3_twice(cache->sKR_nKinv[0], K, sR_n[0], Kinv);
-    mul3x3_twice(cache->sKR_nKinv[1], K, sR_n[1], Kinv);
-    mul3x3_twice(cache->sKR_nKinv[2], K, sR_n[2], Kinv);
+    mul3x3_twice(cache->sKR_nKinv[0], param->K, sR_n[0], Kinv);
+    mul3x3_twice(cache->sKR_nKinv[1], param->K, sR_n[1], Kinv);
+    mul3x3_twice(cache->sKR_nKinv[2], param->K, sR_n[2], Kinv);
 
     float sR_theta[3][3] = {0};
     compute_R_theta(sR_theta, n, theta);
     for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
             sR_theta[i][j] *= s;
-    mul3x3_twice(cache->sKR_thetaKinv, K, sR_theta, Kinv);
+    mul3x3_twice(cache->sKR_thetaKinv, param->K, sR_theta, Kinv);
 }
 
 // Compute photometric residual, derivative wrt xi and weight.

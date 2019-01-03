@@ -1,5 +1,5 @@
 import numpy as np
-from ctypes import cdll, c_bool, c_int, c_float, POINTER, Structure, byref
+from ctypes import cdll, c_bool, c_int, c_float, POINTER, Structure, byref, memmove
 
 lib = cdll.LoadLibrary('src/liblsdslam_test.so')
 
@@ -106,6 +106,11 @@ class Param(Structure):
             ('huber_delta', c_float),
             ('K', c_float * 3 * 3)
             ]
+    def __init__(self, mask_thresh, huber_delta, K):
+        self.mask_thresh = mask_thresh
+        self.huber_delta = huber_delta
+
+        memmove(self.K, _fp(K), K.nbytes)
 
 class Cache(Structure):
     _fields_ = [
@@ -126,12 +131,12 @@ class Cache(Structure):
 def precompute_cache(
         param, cache,
         Iref, Dref, Vref, I,
-        K, rho, n, theta, t
+        rho, n, theta, t
         ):
     lib.precompute_cache(
             byref(param), byref(cache),
             _fp(Iref), _fp(Dref), _fp(Vref), _fp(I),
-            _fp(K), c_float(rho), _fp(n), c_float(theta), _fp(t)
+            c_float(rho), _fp(n), c_float(theta), _fp(t)
             )
 
 # Photometric Residual and its derivative
