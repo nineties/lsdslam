@@ -558,8 +558,8 @@ photometric_residual(
     tau_xi_T[6][2] = 1;
 
     // J = -dI/d(xi)
-    mul_NTT(1, 3, 8, (float*)J, (float*)I_y, (float*)tau_xi_T);
-    for (int i = 0; i < 8; i++)
+    mul_NTT(1, 3, 7, (float*)J, (float*)I_y, (float*)tau_xi_T);
+    for (int i = 0; i < 7; i++)
         J[i] *= -1;
 
     /* ==== Compute d(r_p)d(D_ref) */
@@ -584,18 +584,18 @@ EXPORT void
 photometric_residual_over_frame(
         struct param *param,
         struct cache *cache,
-        float *E, float g[8], float H[8][8]
+        float *E, float g[7], float H[7][7]
         )
 {
     int N = 0;
 
     *E = 0;
-    memset(g, 0, sizeof(float)*8);
-    memset(H, 0, sizeof(float)*64);
+    memset(g, 0, sizeof(float)*7);
+    memset(H, 0, sizeof(float)*49);
 
     float rp;
     float wp;
-    float J[8];
+    float J[7];
     for (int u = 0; u < HEIGHT; u++) {
         for (int v = 0; v < WIDTH; v++) {
             if (!cache->mask[u][v])
@@ -606,12 +606,12 @@ photometric_residual_over_frame(
 
             *E += wp * huber(param->huber_delta, rp);
 
-            for (int i = 0; i < 8; i++)
+            for (int i = 0; i < 7; i++)
                 g[i] += wp * huber_r(param->huber_delta, rp) * J[i];
 
             if (fabs(rp) < param->huber_delta) {
-                for (int i = 0; i < 8; i++) {
-                    for (int j = 0; j < 8; j++)
+                for (int i = 0; i < 7; i++) {
+                    for (int j = 0; j < 7; j++)
                         H[i][j] += wp*J[i]*J[j];
                 }
             }
@@ -621,10 +621,10 @@ photometric_residual_over_frame(
     }
 
     *E /= N;
-    for (int i = 0; i < 8; i++)
+    for (int i = 0; i < 7; i++)
         g[i] /= N;
-    for (int i = 0; i < 8; i++) {
-        for (int j = 0; j < 8; j++)
+    for (int i = 0; i < 7; i++) {
+        for (int j = 0; j < 7; j++)
             H[i][j] /= N * param->huber_delta;
     }
 }
@@ -640,11 +640,117 @@ normalize_image(float y[HEIGHT][WIDTH], unsigned char x[HEIGHT][WIDTH])
 }
 
 /**** Tracking ****/
+struct tracker *
+allocate_tracker(void)
+{
+    struct tracker *obj = malloc(sizeof(struct tracker));
+    if (!obj) {
+        perror("Failed to allocate memory");
+        exit(1);
+    }
+    return obj;
+}
+
+void
+release_tracker(struct tracker *obj)
+{
+    free(obj);
+}
+
 void
 tracker_init(
         struct tracker *tracker,
-        unsigned char image[HEIGHT][WIDTH]
+        float initial_D,
+        float initial_V,
+        float mask_thresh,
+        float huber_delta,
+        float hessian_lambda,
+        float K[3][3],
+        float eps
         )
 {
+    tracker->frame = 0;
+    tracker->eps = eps;
+    tracker->param.initial_D = initial_D;
+    tracker->param.initial_V = initial_V;
+    tracker->param.mask_thresh = mask_thresh;
+    tracker->param.huber_delta = huber_delta;
+    tracker->param.hessian_lambda = hessian_lambda;
+    memcpy(tracker->param.K, K, sizeof(tracker->param.K));
+}
+
+static void
+set_initial_frame(struct tracker *tracker, unsigned char image[HEIGHT][WIDTH])
+{
     normalize_image(tracker->keyframe.I, image);
+    for (int i = 0; i < HEIGHT; i++) {
+        for (int j = 0; j < WIDTH; j++) {
+            tracker->keyframe.D[i][j] = tracker->param.initial_D;
+            tracker->keyframe.D[i][j] = tracker->param.initial_V;
+        }
+    }
+}
+
+void
+tracker_estimate(
+        struct tracker *tracker,
+        unsigned char image[HEIGHT][WIDTH],
+        float n[3], float t[3]
+        )
+{
+    struct timeval start, end, elapsed;
+    gettimeofday(&start, NULL);
+
+    float rho;
+    compute_identity(&rho, n, t);
+    if (tracker->frame == 0) {
+        set_initial_frame(tracker, image);
+        tracker->frame++;
+        return;
+    }
+
+    float I[HEIGHT][WIDTH];
+    normalize_image(I, image);
+    float phi[7] = {
+        0.0 /* rho */, n[0], n[1], n[2], t[0], t[1], t[2]
+    };
+    float *n_ = phi + 1;
+    float *t_ = phi + 4;
+    float delta_phi[7];
+    float g[7];
+    float H[7][7];
+
+    float prevE = 1e10;
+    //while (true) {
+    for (int i = 0; i < 100; i++) {
+        precompute_cache(
+                &tracker->param, &tracker->cache,
+                tracker->keyframe.I, tracker->keyframe.D, tracker->keyframe.V,
+                I, 0.0, n_, t_);
+
+        float E = 0;
+
+        /* E_p component */
+        photometric_residual_over_frame(
+                &tracker->param, &tracker->cache,
+                &E, g, H);
+
+        ///* Add lambda*I to avoid being singular matrix */
+        //for (int i = 0; i < 7; i++)
+        //    H[i][i] += tracker->param.hessian_lambda;
+
+        solve(delta_phi, 7, (float*)H, g);
+
+        /* start from 1 for not updating rho */
+        for (int i = 1; i < 7; i++)
+            phi[i] -= delta_phi[i];
+
+        printf("%f\n", E);
+    }
+
+    tracker->frame++;
+
+    gettimeofday(&end, NULL);
+    timersub(&end, &start, &elapsed);
+    printf("%fms\n", elapsed.tv_usec/1.0e3);
 }

@@ -108,6 +108,7 @@ class Param(Structure):
             ('initial_V', c_float),
             ('mask_thresh', c_float),
             ('huber_delta', c_float),
+            ('hessian_lambda', c_float),
             ('K', c_float * 3 * 3)
             ]
     def __init__(self, initial_D, initial_V, mask_thresh, huber_delta, K):

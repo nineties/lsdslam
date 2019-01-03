@@ -41,15 +41,18 @@ struct cache {
 struct param {
     float initial_D;
     float initial_V;
-    float mask_thresh;  /* use points which satisfy ||nabla I|| > mask_thresh */
-    float huber_delta;  /* huber-norm */
-    float K[3][3];      /* camera matrix */
+    float mask_thresh;      /* use points which satisfy ||nabla I|| > mask_thresh */
+    float huber_delta;      /* huber-norm */
+    float hessian_lambda;   /* for approximation of hessian: H + lambda*I */
+    float K[3][3];          /* camera matrix */
 };
 
 struct tracker {
     struct param param;
     struct cache cache;
     struct keyframe keyframe;
+    int frame;  /* number of processed frames */
+    float eps;  /* epsilon for convergence test */
 };
 
 struct mapper {
