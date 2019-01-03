@@ -188,20 +188,6 @@ def test_T():
             A.dot(x) + b
             )
 
-def test_KTKinv():
-    x = random_vec(3)
-    n = random_norm(3)
-    t = random_vec(3)
-    theta = np.random.randn()
-    rho = np.random.randn()
-    K = np.random.randn(3, 3).astype(np.float32)
-
-    A, b = L.precompute_tau(K, rho, n, theta, t)
-    assert_allclose(
-            K.dot(T(rho, n, theta, t, np.linalg.inv(K).dot(x)).flatten()),
-            A.dot(x) + b
-            )
-
 def test_pi():
     x = random_vec(3)
 
@@ -267,7 +253,7 @@ def test_sobel_filter():
             rtol=0, atol=1e-5
             )
 
-def test_rp():
+def test_photometric_residual():
     I = read_image('test/I.png')
     Iref = read_image('test/Iref.png')
     Dref = read_image('test/Dref.png')
@@ -275,26 +261,51 @@ def test_rp():
 
     t = random_norm(3)*0.01
     n = random_norm(3)
-    theta = 0.01
+    theta = 0.001
     rho = 1.1
     K = (np.eye(3) + np.random.randn(3, 3)*1e-5).astype(np.float32)
+    Kinv = np.linalg.inv(K)
 
     p_ref = (50, 50)
 
-    x_ref = np.linalg.inv(K).dot(piinv(p_ref, Dref[p_ref])).flatten()
-    x = T(rho, n, theta, t, x_ref).flatten()
-    u, v = pip(K.dot(x)).flatten()
+    # Compute with sympy
+    x = piinv(p_ref, Dref[p_ref]).flatten()
+    y = K.dot(T(rho, n, theta, t, Kinv.dot(x))).flatten()
+    u, v = pip(y).flatten()
     if u < 0 or u >= I.shape[0] or v < 0 or v >= I.shape[1]:
         rp1 = np.nan
     else:
         rp1 = Iref[p_ref] - I[int(u), int(v)]
 
+        # compute derivatie
+        I_u = sobel(I, axis=0, mode='constant')/4
+        I_v = sobel(I, axis=1, mode='constant')/4
+        I_q = np.array([I_u[int(u), int(v)], I_v[int(u), int(v)]])
+        I_y = I_q.dot(pip_x(y))
+
+        tau_xi = np.zeros((3, 8), dtype=np.float32)
+
+        s = np.exp(rho)
+
+        tau_xi[:, 0] = s*K.dot(R(n, theta)).dot(Kinv).dot(x)
+        tau_xi[:, 1] = s*K.dot(R_n[0](n, theta)).dot(Kinv).dot(x)
+        tau_xi[:, 2] = s*K.dot(R_n[1](n, theta)).dot(Kinv).dot(x)
+        tau_xi[:, 3] = s*K.dot(R_n[2](n, theta)).dot(Kinv).dot(x)
+        tau_xi[:, 4] = s*K.dot(R_theta(n, theta)).dot(Kinv).dot(x)
+        tau_xi[:, 5:] = np.eye(3)
+
+        J1 = -I_y.dot(tau_xi)
+
+
+    # Compute with the lib
     slam = L.LSDSLAMStruct()
     L.precompute_cache(
         slam,
         Iref, Dref, Vref, I,
         K, rho, n, theta, t
         )
-    rp2 = L.rp(slam, p_ref)
+    rp2, J2 = L.photometric_residual(slam, p_ref)
 
     assert_allclose(rp1, rp2)
+    if not np.isnan(rp1):
+        assert_allclose(J1, J2)

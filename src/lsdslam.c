@@ -24,6 +24,34 @@ get_imageheight(void)
 
 /* matrix-vector multiplication */
 void
+mul_NTNT(int l, int m, int n, float *c, float *a, float *b)
+{
+    for (int i = 0; i < l; i++) {
+        for (int j = 0; j < n; j++) {
+            float v = 0.0;
+            for (int k = 0; k < m; k++) {
+                v += a[i*m+k]*b[k*n+j];
+            }
+            c[i*n+j] = v;
+        }
+    }
+}
+
+void
+mul_NTT(int l, int m, int n, float *c, float *a, float *b)
+{
+    for (int i = 0; i < l; i++) {
+        for (int j = 0; j < n; j++) {
+            float v = 0.0;
+            for (int k = 0; k < m; k++) {
+                v += a[i*m+k]*b[j*m+k];
+            }
+            c[i*n+j] = v;
+        }
+    }
+}
+
+void
 mulmv3d(float y[3], float A[3][3], float x[3])
 {
     for (int i = 0; i < 3; i++) {
@@ -179,23 +207,6 @@ precompute_T(float A[3][3], float b[3], float rho, float n[3], float theta, floa
     }
 }
 
-/* Ax + b = sK(RK^-1x + t) */
-void
-precompute_tau(float A[3][3], float b[3],
-        float K[3][3], float rho, float n[3], float theta, float t[3])
-{
-    float _A[3][3];
-    float _b[3];
-    float Kinv[3][3];
-    inv3x3(Kinv, K);
-
-    /* _A = sR, _b = t */
-    precompute_T(_A, _b, rho, n, theta, t);
-
-    mul3x3_twice(A, K, _A, Kinv);
-    mulmv3d(b, K, _b);
-}
-
 /**** Projection to camera plane ****/
 void
 pi(float y[3], float x[3])
@@ -326,29 +337,100 @@ precompute_cache(
     gradu(cache->I_u, I);
     gradv(cache->I_v, I);
 
-    precompute_tau(cache->tau_A, cache->tau_b, K, rho, n, theta, t);
+    float Kinv[3][3] = {0};
+    inv3x3(Kinv, K);
+
+    float sR[3][3] = {0};
+    float s = expf(rho);
+    compute_R(sR, n, theta);
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+            sR[i][j] *= s;
+
+    mul3x3_twice(cache->sKRKinv, K, sR, Kinv);
+    mulmv3d(cache->Kt, K, t);
+
+    float sR_n[3][3][3] = {0};
+    compute_R_n(sR_n, n, theta);
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+            for (int k = 0; k < 3; k++)
+                sR_n[i][j][k] *= s;
+    mul3x3_twice(cache->sKR_nKinv[0], K, sR_n[0], Kinv);
+    mul3x3_twice(cache->sKR_nKinv[1], K, sR_n[1], Kinv);
+    mul3x3_twice(cache->sKR_nKinv[2], K, sR_n[2], Kinv);
+
+    float sR_theta[3][3] = {0};
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+            sR_theta[i][j] *= s;
+    compute_R_theta(sR_theta, n, theta);
+    mul3x3_twice(cache->sKR_thetaKinv, K, sR_theta, Kinv);
 }
 
-// Photometric Residual
-float
-rp(struct lsdslam *slam, int u_ref, int v_ref)
+// Compute photometric residual and its derivative wrt xi.
+// *res will be NaN for out-bound error.
+void
+photometric_residual(struct lsdslam *slam,
+        float *res, float J[8],
+        int u_ref, int v_ref)
 {
     struct compute_cache *cache = &slam->cache;
-    float p_ref[2] = {u_ref, v_ref};
     float d = cache->Dref[u_ref][v_ref];
-    float x_ref[3];
+    float p_ref[2] = {u_ref, v_ref};
     float x[3];
-    float p[3];
+    float y[3];
+    float q[3];
 
-    piinv(x_ref, p_ref, d);
-    affine3d(x, cache->tau_A, cache->tau_b, x_ref);
-    pi(p, x);
+    piinv(x, p_ref, d);
+    affine3d(y, cache->sKRKinv, cache->Kt, x);
+    pi(q, y);
 
-    int u = (int)p[0];
-    int v = (int)p[1];
+    int u = (int)q[0];
+    int v = (int)q[1];
 
-    if (u < 0 || u >= HEIGHT || v < 0 || v >= WIDTH)
-        return NAN;
+    if (u < 0 || u >= HEIGHT || v < 0 || v >= WIDTH) {
+        *res = NAN;
+        return;
+    }
 
-    return cache->Iref[u_ref][v_ref] - cache->I[u][v];
+    *res = cache->Iref[u_ref][v_ref] - cache->I[u][v];
+
+    /* d(pi_p)/dy */
+    float pip_y[2][3];
+    pip_x(pip_y, y);
+
+    /* dI/dq */
+    float I_q[2] = {cache->I_u[u][v], cache->I_v[u][v]};
+
+    /* dI/dy */
+    float I_y[3] = {
+        I_q[0]*pip_y[0][0] + I_q[1]*pip_y[1][0],
+        I_q[0]*pip_y[0][1] + I_q[1]*pip_y[1][1],
+        I_q[0]*pip_y[0][2] + I_q[1]*pip_y[1][2],
+    };
+
+    /* transpose of d(tau)/d(xi) */
+    float tau_xi_T[8][3] = {0};
+
+    mulmv3d(tau_xi_T[0], cache->sKRKinv, x);       // d(tau)/d(rho)(x) = sKRK^-1x 
+    mulmv3d(tau_xi_T[1], cache->sKR_nKinv[0], x);  // d(tau)/d(n_1)(x) = sKR_n_1K^-1x
+    mulmv3d(tau_xi_T[2], cache->sKR_nKinv[1], x);  // d(tau)/d(n_2)(x) = sKR_n_2K^-1x
+    mulmv3d(tau_xi_T[3], cache->sKR_nKinv[2], x);  // d(tau)/d(n_3)(x) = sKR_n_3K^-1x
+    mulmv3d(tau_xi_T[4], cache->sKR_thetaKinv, x); // d(tau)/d(theta)(x) = sKR_thetaK^-1x
+    // d(tau)/d(t)(x) = I
+    tau_xi_T[5][0] = 1;
+    tau_xi_T[5][1] = 0;
+    tau_xi_T[5][2] = 0;
+    tau_xi_T[6][0] = 0;
+    tau_xi_T[6][1] = 1;
+    tau_xi_T[6][2] = 0;
+    tau_xi_T[7][0] = 0;
+    tau_xi_T[7][1] = 0;
+    tau_xi_T[7][2] = 1;
+
+    // J = -dI/d(xi)
+    mul_NTT(1, 3, 8, (float*)J, (float*)I_y, (float*)tau_xi_T);
+    for (int i = 0; i < 8; i++)
+        J[i] *= -1;
 }

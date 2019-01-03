@@ -54,13 +54,6 @@ def precompute_T(rho, n, theta, t):
     lib.precompute_T(_fp(A), _fp(b), c_float(rho), _fp(n), c_float(theta), _fp(t))
     return A, b
 
-def precompute_tau(K, rho, n, theta, t):
-    A = np.zeros((3, 3), dtype=np.float32)
-    b = np.zeros(3, dtype=np.float32)
-    lib.precompute_tau(
-            _fp(A), _fp(b), _fp(K), c_float(rho), _fp(n), c_float(theta), _fp(t))
-    return A, b
-
 def pi(x):
     y = np.zeros(3, dtype=np.float32)
     lib.pi(_fp(y), _fp(x))
@@ -115,8 +108,10 @@ class ComputeCache(Structure):
             ('I',   c_float * WIDTH * HEIGHT),
             ('I_u', c_float * WIDTH * HEIGHT),
             ('I_v', c_float * WIDTH * HEIGHT),
-            ('KTKinv_A', c_float * 3 * 3),
-            ('KTKinv_b', c_float * 3)
+            ('Kt',  c_float * 3),
+            ('sKRKinv', c_float * 3 * 3),
+            ('sKR_nKinv', c_float * 3 * 3 * 3),
+            ('sKR_thetaKinv', c_float * 3 * 3),
             ]
 
 class LSDSLAMStruct(Structure):
@@ -136,8 +131,11 @@ def precompute_cache(
             _fp(K), c_float(rho), _fp(n), c_float(theta), _fp(t)
             )
 
-# Photometric Residual
-lib.rp.restype = c_float
-def rp(slam, p):
+# Photometric Residual and its derivative
+lib.photometric_residual.restype = c_int
+def photometric_residual(slam, p):
     u, v = p
-    return lib.rp(byref(slam), c_int(u), c_int(v))
+    res = c_float()
+    J = np.zeros(8, dtype=np.float32)
+    lib.photometric_residual(byref(slam), byref(res), _fp(J), c_int(u), c_int(v))
+    return res.value, J

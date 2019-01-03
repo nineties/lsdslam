@@ -19,8 +19,11 @@ struct compute_cache {
     float I_u[HEIGHT][WIDTH];
     float I_v[HEIGHT][WIDTH];
 
-    float tau_A[3][3];
-    float tau_b[3];
+    /* coefficients for d(rp)/d(xi) */
+    float Kt[3];
+    float sKRKinv[3][3];
+    float sKR_nKinv[3][3][3];
+    float sKR_thetaKinv[3][3];
 };
 
 struct param {
