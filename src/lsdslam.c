@@ -326,8 +326,9 @@ precompute_cache(
     precompute_KTKinv(cache->KTKinv_A, cache->KTKinv_b, K, rho, n, theta, t);
 }
 
+// Photometric Residual
 float
-photometric_residual(struct lsdslam *slam, int u_ref, int v_ref)
+rp(struct lsdslam *slam, int u_ref, int v_ref)
 {
     struct compute_cache *cache = &slam->cache;
     float p_ref[2] = {u_ref, v_ref};

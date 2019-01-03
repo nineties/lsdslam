@@ -137,7 +137,7 @@ def precompute_cache(
             )
 
 # Photometric Residual
-lib.photometric_residual.restype = c_float
+lib.rp.restype = c_float
 def rp(slam, p):
     u, v = p
-    return lib.photometric_residual(byref(slam), c_int(u), c_int(v))
+    return lib.rp(byref(slam), c_int(u), c_int(v))
