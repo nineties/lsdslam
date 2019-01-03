@@ -33,28 +33,22 @@ def affine3d(A, b, x):
     lib.affine3d(_fp(y), _fp(A), _fp(b), _fp(x))
     return y
 
-def R(n, theta):
+def R(n):
     y = np.zeros((3, 3), dtype=np.float32)
-    lib.compute_R(_fp(y), _fp(n), c_float(theta))
+    lib.compute_R(_fp(y), _fp(n))
     return y
 
-def R_theta(n, theta):
-    y = np.zeros((3, 3), dtype=np.float32)
-    lib.compute_R_theta(_fp(y), _fp(n), c_float(theta))
-    return y
-
-def R_n(n, theta):
+def R_n(n):
     y = np.zeros((3, 3, 3), dtype=np.float32)
-    lib.compute_R_n(_fp(y), _fp(n), c_float(theta))
+    lib.compute_R_n(_fp(y), _fp(n))
     return y
 
 def identity():
     rho = c_float()
     n = np.zeros(3, dtype=np.float32)
-    theta = c_float()
     t = np.zeros(3, dtype=np.float32)
-    lib.compute_identity(byref(rho), _fp(n), byref(theta), _fp(t))
-    return rho.value, n, theta.value, t
+    lib.compute_identity(byref(rho), _fp(n), _fp(t))
+    return rho.value, n, t
 
 def pi(x):
     y = np.zeros(3, dtype=np.float32)
@@ -137,18 +131,17 @@ class Cache(Structure):
             ('Kt',  c_float * 3),
             ('sKRKinv', c_float * 3 * 3),
             ('sKR_nKinv', c_float * 3 * 3 * 3),
-            ('sKR_thetaKinv', c_float * 3 * 3),
             ]
 
 def precompute_cache(
         param, cache,
         Iref, Dref, Vref, I,
-        rho, n, theta, t
+        rho, n, t
         ):
     lib.precompute_cache(
             byref(param), byref(cache),
             _fp(Iref), _fp(Dref), _fp(Vref), _fp(I),
-            c_float(rho), _fp(n), c_float(theta), _fp(t)
+            c_float(rho), _fp(n), _fp(t)
             )
 
 # Photometric Residual and its derivative
@@ -157,7 +150,7 @@ def photometric_residual(cache, p):
     u, v = p
     res = c_float()
     w = c_float()
-    J = np.zeros(8, dtype=np.float32)
+    J = np.zeros(7, dtype=np.float32)
     lib.photometric_residual(byref(cache), byref(res), byref(w), _fp(J), c_int(u), c_int(v))
     return res.value, J, w.value
 

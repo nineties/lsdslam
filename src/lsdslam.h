@@ -36,7 +36,6 @@ struct cache {
     float Kt[3];
     float sKRKinv[3][3];
     float sKR_nKinv[3][3][3];
-    float sKR_thetaKinv[3][3];
 };
 
 struct param {

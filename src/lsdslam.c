@@ -52,6 +52,12 @@ mul_NTT(int l, int m, int n, float *c, float *a, float *b)
     }
 }
 
+EXPORT float
+iprod3d(float a[3], float b[3])
+{
+    return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+}
+
 EXPORT void
 mulmv3d(float y[3], float A[3][3], float x[3])
 {
@@ -129,80 +135,118 @@ affine3d(float y[3], float A[3][3], float b[3], float x[3])
 /**** Rotation ****/
 
 /* Rodrigues's rotation formula
- * Rotate x according to axis n and angle theta.
+ * Rotate x according to axis n and angle theta=|n|.
  * The result is stored to y */
-EXPORT void
-compute_R(float y[3][3], float n[3], float theta)
-{
-    float s = sinf(theta);
-    float c = cosf(theta);
 
-    y[0][0] = c + n[0]*n[0]*(1-c);
-    y[0][1] = n[0]*n[1]*(1-c) - n[2]*s;
-    y[0][2] = n[2]*n[0]*(1-c) + n[1]*s;
-    y[1][0] = n[0]*n[1]*(1-c) + n[2]*s;
-    y[1][1] = c + n[1]*n[1]*(1-c);
-    y[1][2] = n[1]*n[2]*(1-c) - n[0]*s;
-    y[2][0] = n[2]*n[0]*(1-c) - n[1]*s;
-    y[2][1] = n[1]*n[2]*(1-c) + n[0]*s;
-    y[2][2] = c + n[2]*n[2]*(1-c);
+EXPORT void
+compute_nx(float y[3][3], float n[3])
+{
+    y[0][0] =     0; y[0][1] = -n[2]; y[0][2] =  n[1];
+    y[1][0] =  n[2]; y[1][1] =     0; y[1][2] = -n[0];
+    y[2][0] = -n[1]; y[2][1] =  n[0]; y[2][2] =     0;
 }
 
-// dR/d(theta)
 EXPORT void
-compute_R_theta(float y[3][3], float n[3], float theta)
+compute_R(float y[3][3], float n[3])
 {
-    float s = sinf(theta);
-    float c = cosf(theta);
+    y[0][0] = 1; y[0][1] = 0; y[0][2] = 0;
+    y[1][0] = 0; y[1][1] = 1; y[1][2] = 0;
+    y[2][0] = 0; y[2][1] = 0; y[2][2] = 1;
 
-    y[0][0] = -s + n[0]*n[0]*s;
-    y[0][1] = n[0]*n[1]*s - n[2]*c;
-    y[0][2] = n[2]*n[0]*s + n[1]*c;
-    y[1][0] = n[0]*n[1]*s + n[2]*c;
-    y[1][1] = -s + n[1]*n[1]*s;
-    y[1][2] = n[1]*n[2]*s - n[0]*c;
-    y[2][0] = n[2]*n[0]*s - n[1]*c;
-    y[2][1] = n[1]*n[2]*s + n[0]*c;
-    y[2][2] = -s + n[2]*n[2]*s;
+    float theta = sqrtf(iprod3d(n, n));
+
+    if (fabs(theta) < 1e-30)
+        return;
+
+    float nx[3][3];
+    float nx2[3][3];
+    compute_nx(nx, n);
+    mul3x3(nx2, nx, nx);
+
+    float c1 = sinf(theta)/theta;
+    float c2 = (1-cosf(theta))/(theta*theta);
+
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++)
+            y[i][j] += c1*nx[i][j] + c2*nx2[i][j];
+    }
 }
 
 // dR/dn
 EXPORT void
-compute_R_n(float y[3][3][3], float n[3], float theta)
+compute_R_n(float y[3][3][3], float n[3])
 {
+    float theta = sqrtf(iprod3d(n, n));
+    if (fabs(theta) < 1e-12) {
+        memset(y, 0, sizeof(float)*3*3*3);
+        // dR/dn1
+        y[0][1][2] = -1;
+        y[0][2][1] =  1;
+
+        // dR/dn2
+        y[1][0][2] =  1;
+        y[1][2][0] = -1;
+
+        // dR/dn2
+        y[2][0][1] = -1;
+        y[2][1][0] =  1;
+        return;
+    }
+
+
     float s = sinf(theta);
     float c = cosf(theta);
+    float c1 = (theta * c - s) / (theta * theta * theta);
+    float c2 = (theta * s + 2 *c - 2) / (theta * theta * theta * theta);
+    float c3 = s / theta;
+    float c4 = (1 - c) / (theta * theta);
+
+    float nx[3][3];
+    float nx2[3][3];
+    compute_nx(nx, n);
+    mul3x3(nx2, nx, nx);
 
     // dR/dn1
-    y[0][1][1] = y[0][2][2] = -2*(1-c)*n[0];
-    y[0][0][1] = y[0][1][0] = (1-c)*n[1];
-    y[0][0][2] = y[0][2][0] = (1-c)*n[2];
-    y[0][1][2] = -s;
-    y[0][2][1] = s;
+    y[0][0][0] = c1*n[0]*nx[0][0] + c2*n[0]*nx2[0][0];
+    y[0][0][1] = c1*n[0]*nx[0][1] + c2*n[0]*nx2[0][1] + c4*n[1];
+    y[0][0][2] = c1*n[0]*nx[0][2] + c2*n[0]*nx2[0][2] + c4*n[2];
+    y[0][1][0] = c1*n[0]*nx[1][0] + c2*n[0]*nx2[1][0] + c4*n[1];
+    y[0][1][1] = c1*n[0]*nx[1][1] + c2*n[0]*nx2[1][1] - 2*c4*n[0];
+    y[0][1][2] = c1*n[0]*nx[1][2] + c2*n[0]*nx2[1][2] - c3;
+    y[0][2][0] = c1*n[0]*nx[2][0] + c2*n[0]*nx2[2][0] + c4*n[2];
+    y[0][2][1] = c1*n[0]*nx[2][1] + c2*n[0]*nx2[2][1] + c3;
+    y[0][2][2] = c1*n[0]*nx[2][2] + c2*n[0]*nx2[2][2] - 2*c4*n[0];
 
     // dR/dn2
-    y[1][0][1] = y[1][1][0] = (1-c)*n[0];
-    y[1][1][2] = y[1][2][1] = (1-c)*n[2];
-    y[1][0][0] = y[1][2][2] = -2*(1-c)*n[1];
-    y[1][0][2] = s;
-    y[1][2][0] = -s;
+    y[1][0][0] = c1*n[1]*nx[0][0] + c2*n[1]*nx2[0][0] - 2*c4*n[1];
+    y[1][0][1] = c1*n[1]*nx[0][1] + c2*n[1]*nx2[0][1] + c4*n[0];
+    y[1][0][2] = c1*n[1]*nx[0][2] + c2*n[1]*nx2[0][2] + c3;
+    y[1][1][0] = c1*n[1]*nx[1][0] + c2*n[1]*nx2[1][0] + c4*n[0];
+    y[1][1][1] = c1*n[1]*nx[1][1] + c2*n[1]*nx2[1][1];
+    y[1][1][2] = c1*n[1]*nx[1][2] + c2*n[1]*nx2[1][2] + c4*n[2];
+    y[1][2][0] = c1*n[1]*nx[2][0] + c2*n[1]*nx2[2][0] - c3;
+    y[1][2][1] = c1*n[1]*nx[2][1] + c2*n[1]*nx2[2][1] + c4*n[2];
+    y[1][2][2] = c1*n[1]*nx[2][2] + c2*n[1]*nx2[2][2] - 2*c4*n[1];
 
     // dR/dn2
-    y[2][0][0] = y[2][1][1] = -2*(1-c)*n[2];
-    y[2][0][2] = y[2][2][0] = (1-c)*n[0];
-    y[2][1][2] = y[2][2][1] = (1-c)*n[1];
-    y[2][0][1] = -s;
-    y[2][1][0] = s;
+    y[2][0][0] = c1*n[2]*nx[0][0] + c2*n[2]*nx2[0][0] - 2*c4*n[2];
+    y[2][0][1] = c1*n[2]*nx[0][1] + c2*n[2]*nx2[0][1] - c3;
+    y[2][0][2] = c1*n[2]*nx[0][2] + c2*n[2]*nx2[0][2] + c4*n[0];
+    y[2][1][0] = c1*n[2]*nx[1][0] + c2*n[2]*nx2[1][0] + c3;
+    y[2][1][1] = c1*n[2]*nx[1][1] + c2*n[2]*nx2[1][1] - 2*c4*n[2];
+    y[2][1][2] = c1*n[2]*nx[1][2] + c2*n[2]*nx2[1][2] + c4*n[1];
+    y[2][2][0] = c1*n[2]*nx[2][0] + c2*n[2]*nx2[2][0] + c4*n[0];
+    y[2][2][1] = c1*n[2]*nx[2][1] + c2*n[2]*nx2[2][1] + c4*n[1];
+    y[2][2][2] = c1*n[2]*nx[2][2] + c2*n[2]*nx2[2][2];
 }
 
 EXPORT void
-compute_identity(float *rho, float n[3], float *theta, float t[3])
+compute_identity(float *rho, float n[3], float t[3])
 {
     *rho = 0.0;
-    n[0] = 1.0;
+    n[0] = 0.0;
     n[1] = 0.0;
     n[2] = 0.0;
-    *theta = 0.0;
     t[0] = 0.0;
     t[1] = 0.0;
     t[2] = 0.0;
@@ -414,7 +458,6 @@ precompute_cache(
         float I[HEIGHT][WIDTH],
         float rho,
         float n[3],
-        float theta,
         float t[3]
         )
 {
@@ -434,7 +477,7 @@ precompute_cache(
 
     float sR[3][3] = {0};
     float s = expf(rho);
-    compute_R(sR, n, theta);
+    compute_R(sR, n);
     for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
             sR[i][j] *= s;
@@ -443,7 +486,7 @@ precompute_cache(
     mulmv3d(cache->Kt, param->K, t);
 
     float sR_n[3][3][3] = {0};
-    compute_R_n(sR_n, n, theta);
+    compute_R_n(sR_n, n);
     for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
             for (int k = 0; k < 3; k++)
@@ -451,13 +494,6 @@ precompute_cache(
     mul3x3_twice(cache->sKR_nKinv[0], param->K, sR_n[0], Kinv);
     mul3x3_twice(cache->sKR_nKinv[1], param->K, sR_n[1], Kinv);
     mul3x3_twice(cache->sKR_nKinv[2], param->K, sR_n[2], Kinv);
-
-    float sR_theta[3][3] = {0};
-    compute_R_theta(sR_theta, n, theta);
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            sR_theta[i][j] *= s;
-    mul3x3_twice(cache->sKR_thetaKinv, param->K, sR_theta, Kinv);
 }
 
 // Compute photometric residual, derivative wrt xi and weight.
@@ -465,7 +501,7 @@ precompute_cache(
 EXPORT int
 photometric_residual(
         struct cache *cache,
-        float *rp, float *wp, float J[8],
+        float *rp, float *wp, float J[7],
         int u_ref, int v_ref)
 {
     float p_ref[2] = {u_ref, v_ref};
@@ -504,23 +540,22 @@ photometric_residual(
     /* ==== Compute d(r_p)/d(xi) ==== */
 
     /* transpose of d(tau)/d(xi) */
-    float tau_xi_T[8][3] = {0};
+    float tau_xi_T[7][3] = {0};
 
     mulmv3d(tau_xi_T[0], cache->sKRKinv, x);       // d(tau)/d(rho)(x) = sKRK^-1x 
     mulmv3d(tau_xi_T[1], cache->sKR_nKinv[0], x);  // d(tau)/d(n_1)(x) = sKR_n_1K^-1x
     mulmv3d(tau_xi_T[2], cache->sKR_nKinv[1], x);  // d(tau)/d(n_2)(x) = sKR_n_2K^-1x
     mulmv3d(tau_xi_T[3], cache->sKR_nKinv[2], x);  // d(tau)/d(n_3)(x) = sKR_n_3K^-1x
-    mulmv3d(tau_xi_T[4], cache->sKR_thetaKinv, x); // d(tau)/d(theta)(x) = sKR_thetaK^-1x
     // d(tau)/d(t)(x) = I
-    tau_xi_T[5][0] = 1;
-    tau_xi_T[5][1] = 0;
+    tau_xi_T[4][0] = 1;
+    tau_xi_T[4][1] = 0;
+    tau_xi_T[4][2] = 0;
+    tau_xi_T[5][0] = 0;
+    tau_xi_T[5][1] = 1;
     tau_xi_T[5][2] = 0;
     tau_xi_T[6][0] = 0;
-    tau_xi_T[6][1] = 1;
-    tau_xi_T[6][2] = 0;
-    tau_xi_T[7][0] = 0;
-    tau_xi_T[7][1] = 0;
-    tau_xi_T[7][2] = 1;
+    tau_xi_T[6][1] = 0;
+    tau_xi_T[6][2] = 1;
 
     // J = -dI/d(xi)
     mul_NTT(1, 3, 8, (float*)J, (float*)I_y, (float*)tau_xi_T);
@@ -549,14 +584,14 @@ EXPORT void
 photometric_residual_over_frame(
         struct param *param,
         struct cache *cache,
-        float *E, float g[9], float H[9][9]
+        float *E, float g[8], float H[8][8]
         )
 {
     int N = 0;
 
     *E = 0;
-    memset(g, 0, sizeof(float)*9);
-    memset(H, 0, sizeof(float)*81);
+    memset(g, 0, sizeof(float)*8);
+    memset(H, 0, sizeof(float)*64);
 
     float rp;
     float wp;

@@ -1,6 +1,6 @@
 import time
 import numpy as np
-from sympy import Matrix, symbols, diff, simplify, lambdify, transpose, cos, sin, exp, eye
+from sympy import Matrix, symbols, diff, simplify, lambdify, transpose, cos, sin, exp, sqrt, eye
 from scipy.signal import convolve2d
 from scipy.ndimage import sobel
 from PIL import Image
@@ -54,39 +54,40 @@ t = Matrix([t1, t2, t3])   # translation vector
 rho = symbols('rho')       # scale factor = exp(rho)
 
 # Rodrigues's rotation formula
-def R_formula(n, theta):
+def R_formula(n):
+    theta = sqrt(n.dot(n))
     N = Matrix([[0, -n3, n2], [n3, 0, -n1], [-n2, n1, 0]])
-    return eye(3) + sin(theta)*N + (1-cos(theta))*N**2
+    return eye(3) + sin(theta)/theta*N + ((1-cos(theta))/theta**2)*N**2
 
-R = lambdify((n, theta), R_formula(n, theta))
+R = lambdify((n,), R_formula(n))
 
 # dR/d(theta)
-R_theta = lambdify((n, theta), diff(R_formula(n, theta), theta))
+R_theta = lambdify((n,), diff(R_formula(n), theta))
 
 # dR/dn
 R_n = [
-    lambdify((n, theta), diff(R_formula(n, theta), n1)),
-    lambdify((n, theta), diff(R_formula(n, theta), n2)),
-    lambdify((n, theta), diff(R_formula(n, theta), n3))
+    lambdify((n,), diff(R_formula(n), n1)),
+    lambdify((n,), diff(R_formula(n), n2)),
+    lambdify((n,), diff(R_formula(n), n3))
     ]
 
-def rotate_formula(n, theta, x):
-    return R_formula(n, theta) * x
+def rotate_formula(n, x):
+    return R_formula(n) * x
 
-def rotate_n_formula(n, theta, x):
-    y = rotate_formula(n, theta, x)
+def rotate_n_formula(n, x):
+    y = rotate_formula(n, x)
     return diff(y, n_1).row_join(diff(y, n_2)).row_join(diff(y, n_3))
 
 rotate_n = [
-    lambdify((n, theta, x), diff(rotate_formula(n, theta, x), n1)),
-    lambdify((n, theta, x), diff(rotate_formula(n, theta, x), n2)),
-    lambdify((n, theta, x), diff(rotate_formula(n, theta, x), n3))
+    lambdify((n, x), diff(rotate_formula(n, x), n1)),
+    lambdify((n, x), diff(rotate_formula(n, x), n2)),
+    lambdify((n, x), diff(rotate_formula(n, x), n3))
     ]
 
-def T_formula(rho, n, theta, t, x):
-    return exp(rho)*R_formula(n, theta)*x + t
+def T_formula(rho, n, t, x):
+    return exp(rho)*R_formula(n)*x + t
 
-T = lambdify((rho, n, theta, t, x), T_formula(rho, n, theta, t, x))
+T = lambdify((rho, n, t, x), T_formula(rho, n, t, x))
 
 def pip_formula(x1, x2, x3):
     return Matrix([x1/x3, x2/x3])
@@ -115,49 +116,28 @@ piinv_d = lambdify((p, d), diff(piinv_formula(u, v, d), d))
 #==== Tests ====
 
 def test_R():
-    n = random_norm(3)
-    theta = np.random.randn()
+    n = random_vec(3)
 
     assert_allclose(
-            R(n, theta),
-            L.R(n, theta)
-            )
-
-def test_R_theta():
-    n = random_norm(3)
-    theta = np.random.randn()
-
-    assert_allclose(
-            R_theta(n, theta),
-            L.R_theta(n, theta)
+            R(n),
+            L.R(n)
             )
 
 def test_R_n():
     n = random_norm(3)
-    theta = np.random.randn()
-
-    A = L.R_n(n, theta)
-
+    A = L.R_n(n)
     for i in range(3):
-        assert_allclose(R_n[i](n, theta), A[i])
+        assert_allclose(R_n[i](n), A[i])
 
 def test_rotate_n():
     n = random_norm(3)
     x = random_vec(3)
-    theta = np.random.randn()
-
-    A = L.R_n(n, theta)
+    A = L.R_n(n)
     for i in range(3):
         assert_allclose(
-            rotate_n[i](n, theta, x).flatten(),
+            rotate_n[i](n, x).flatten(),
             A[i].dot(x)
             )
-
-def test_identity():
-    x = random_vec(3)
-    rho, n, theta, t = L.identity()
-    y = T(rho, n, theta, t, x)
-    assert_allclose(y.flatten(), x)
 
 def test_pi():
     x = random_vec(3)
@@ -244,9 +224,8 @@ def test_photometric_residual():
     Vref = np.ones_like(Iref)
 
     t = random_vec(3)*0.01
-    n = random_norm(3)
-    theta = 0.001
-    rho = 1.1
+    n = random_vec(3)*0.01
+    rho = 0.1
     K = (np.eye(3) + np.random.randn(3, 3)*1e-5).astype(np.float32)
     Kinv = np.linalg.inv(K)
 
@@ -254,7 +233,7 @@ def test_photometric_residual():
 
     # Compute with sympy
     x = piinv(p_ref, Dref[p_ref]).flatten()
-    y = K.dot(T(rho, n, theta, t, Kinv.dot(x))).flatten()
+    y = K.dot(T(rho, n, t, Kinv.dot(x))).flatten()
     u, v = pip(y).flatten()
     if u < 0 or u >= I.shape[0] or v < 0 or v >= I.shape[1]:
         rp1 = np.nan
@@ -267,21 +246,20 @@ def test_photometric_residual():
         I_q = np.array([I_u[int(u), int(v)], I_v[int(u), int(v)]])
         I_y = I_q.dot(pip_x(y))
 
-        tau_xi = np.zeros((3, 8), dtype=np.float32)
+        tau_xi = np.zeros((3, 7), dtype=np.float32)
 
         s = np.exp(rho)
 
-        tau_xi[:, 0] = s*K.dot(R(n, theta)).dot(Kinv).dot(x)
-        tau_xi[:, 1] = s*K.dot(R_n[0](n, theta)).dot(Kinv).dot(x)
-        tau_xi[:, 2] = s*K.dot(R_n[1](n, theta)).dot(Kinv).dot(x)
-        tau_xi[:, 3] = s*K.dot(R_n[2](n, theta)).dot(Kinv).dot(x)
-        tau_xi[:, 4] = s*K.dot(R_theta(n, theta)).dot(Kinv).dot(x)
-        tau_xi[:, 5:] = np.eye(3)
+        tau_xi[:, 0] = s*K.dot(R(n)).dot(Kinv).dot(x)
+        tau_xi[:, 1] = s*K.dot(R_n[0](n)).dot(Kinv).dot(x)
+        tau_xi[:, 2] = s*K.dot(R_n[1](n)).dot(Kinv).dot(x)
+        tau_xi[:, 3] = s*K.dot(R_n[2](n)).dot(Kinv).dot(x)
+        tau_xi[:, 4:] = np.eye(3)
 
         J1 = -I_y.dot(tau_xi)
 
         # weight
-        I_Dref = I_y.dot(s*K.dot(R(n, theta)).dot(Kinv)).dot(piinv_d(p_ref, Dref[p_ref]))
+        I_Dref = I_y.dot(s*K.dot(R(n)).dot(Kinv)).dot(piinv_d(p_ref, Dref[p_ref]))
         w1 = 1/(2*I.var() + (I_Dref[0])**2 * Vref[p_ref])
 
 
@@ -291,7 +269,7 @@ def test_photometric_residual():
     L.precompute_cache(
         param, cache,
         Iref, Dref, Vref, I,
-        rho, n, theta, t
+        rho, n, t
         )
     rp2, J2, w2 = L.photometric_residual(cache, p_ref)
 
@@ -299,24 +277,3 @@ def test_photometric_residual():
     if not np.isnan(rp1):
         assert_allclose(J1, J2, rtol=1e-1)
         assert_allclose(w1, w2)
-
-def test_photometric_residual_over_frame():
-    I = read_image('test/I.png')
-    Iref = read_image('test/Iref.png')
-    Dref = read_image('test/Dref.png')
-    Vref = np.ones_like(Iref)
-
-    t = random_vec(3)*0.01
-    n = random_norm(3)
-    theta = 0.001
-    rho = 1.1
-    K = (np.eye(3) + np.random.randn(3, 3)*1e-5).astype(np.float32)
-
-    param = L.Param(1., 1e5, 20., 3, K)
-    cache = L.Cache()
-    L.precompute_cache(
-        param, cache,
-        Iref, Dref, Vref, I,
-        rho, n, theta, t
-        )
-    L.photometric_residual_over_frame(param, cache)
