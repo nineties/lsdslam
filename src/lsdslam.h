@@ -18,6 +18,7 @@ struct compute_cache {
     float I[HEIGHT][WIDTH];
     float I_u[HEIGHT][WIDTH];
     float I_v[HEIGHT][WIDTH];
+    float Ivar;
 
     /* coefficients for d(rp)/d(xi) */
     float Kt[3];

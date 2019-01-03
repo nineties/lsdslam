@@ -94,6 +94,10 @@ def gradv(I):
     lib.gradv(_fp(y), _fp(I))
     return y
 
+lib.variance.restype = c_float
+def variance(I):
+    return lib.variance(_fp(I))
+
 class Param(Structure):
     _fields_ = [
             ('mask_thresh', c_float)
@@ -108,6 +112,7 @@ class ComputeCache(Structure):
             ('I',   c_float * WIDTH * HEIGHT),
             ('I_u', c_float * WIDTH * HEIGHT),
             ('I_v', c_float * WIDTH * HEIGHT),
+            ('Ivar', c_float),
             ('Kt',  c_float * 3),
             ('sKRKinv', c_float * 3 * 3),
             ('sKR_nKinv', c_float * 3 * 3 * 3),

@@ -299,6 +299,22 @@ gradv(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
     filter3x3(y, k, x);
 }
 
+float
+variance(float x[HEIGHT][WIDTH])
+{
+    float mean = 0.0;
+    float sqmean = 0.0;
+    for (int i = 0; i < HEIGHT; i++) {
+        for (int j = 0; j < WIDTH; j++) {
+            mean += x[i][j];
+            sqmean += x[i][j]*x[i][j];
+        }
+    }
+    mean /= (HEIGHT*WIDTH);
+    sqmean /= (HEIGHT*WIDTH);
+    return sqmean - mean*mean;
+}
+
 void
 create_mask(bool mask[HEIGHT][WIDTH], float I[HEIGHT][WIDTH], float thresh)
 {
@@ -336,6 +352,7 @@ precompute_cache(
     memcpy(cache->I, I, sizeof(cache->I));
     gradu(cache->I_u, I);
     gradv(cache->I_v, I);
+    cache->Ivar = variance(I);
 
     float Kinv[3][3] = {0};
     inv3x3(Kinv, K);

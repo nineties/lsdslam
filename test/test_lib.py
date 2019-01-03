@@ -253,6 +253,10 @@ def test_sobel_filter():
             rtol=0, atol=1e-5
             )
 
+def test_variance():
+    I = read_image('test/I.png')
+    assert_allclose(I.var(), L.variance(I))
+
 def test_photometric_residual():
     I = read_image('test/I.png')
     Iref = read_image('test/Iref.png')
