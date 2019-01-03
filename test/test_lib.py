@@ -256,11 +256,14 @@ def test_gaussian_filter():
 
 def test_sobel_filter():
     I = read_image('test/I.png')/255.
-    sx = sobel(I, axis=0, mode='constant')
-    sy = sobel(I, axis=1, mode='constant')
     assert_allclose(
-            np.sqrt(sx**2 + sy**2),
-            L.sobel_filter3x3(I),
+            sobel(I, axis=0, mode='constant'),
+            L.sobely(I),
+            rtol=0, atol=1e-5
+            )
+    assert_allclose(
+            sobel(I, axis=1, mode='constant'),
+            L.sobelx(I),
             rtol=0, atol=1e-5
             )
 
@@ -283,11 +286,18 @@ def test_rp():
     x2 = T(rho, n, theta, t, x1).flatten()
     u, v = pip(K.dot(x2)).flatten()
     rp1 = Iref[p] - I[int(u), int(v)]
-    print('python {}s'.format(time.time() - start))
+    print('python {}ms'.format((time.time() - start)*1000))
 
-    cache = L.precompute_cache(
-            Iref, Dref, Vref
-            )
-    #r2 = L.rp(cache, p)
+    slam = L.LSDSLAMStruct()
+    start = time.time()
+    L.precompute_cache(
+        slam,
+        Iref, Dref, Vref,
+        I
+        )
+    print('prep {}ms'.format((time.time() - start)*1000))
+    start = time.time()
+    rp2 = L.rp(slam, p)
+    print('C {}ms'.format((time.time() - start)*1000))
 
     #assert_allclose(rp1, rp2)

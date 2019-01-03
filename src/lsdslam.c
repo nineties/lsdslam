@@ -253,38 +253,37 @@ gaussian_filter3x3(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
 }
 
 void
-sobel_filter3x3(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
+sobelx(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
 {
-    float kx[3][3] = {
+    float k[3][3] = {
         {1., 0., -1.},
         {2., 0., -2.},
         {1., 0., -1.},
     };
-    float ky[3][3] = {
-        { 1.,  2.,  1.},
-        { 0.,  0.,  0.},
-        {-1., -2., -1.},
+    filter3x3(y, k, x);
+}
+
+void
+sobely(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
+{
+    float k[3][3] = {
+        { 1., 2., 1.},
+        { 0., 0., 0.},
+        {-1.,-2.,-1.},
     };
-    float tx[HEIGHT][WIDTH];
-    float ty[HEIGHT][WIDTH];
-    filter3x3(tx, kx, x);
-    filter3x3(ty, ky, x);
-    for (int i = 0; i < HEIGHT; i++) {
-        for (int j = 0; j < WIDTH; j++) {
-            y[i][j] = sqrtf(tx[i][j]*tx[i][j] + ty[i][j]*ty[i][j]);
-        }
-    }
+    filter3x3(y, k, x);
 }
 
 void
 create_mask(bool mask[HEIGHT][WIDTH], float I[HEIGHT][WIDTH], float thresh)
 {
-    float t[HEIGHT][WIDTH];
-    sobel_filter3x3(t, I);
+    float gx[HEIGHT][WIDTH];
+    float gy[HEIGHT][WIDTH];
+    sobelx(gx, I);
+    sobely(gy, I);
     for (int i = 0; i < HEIGHT; i++) {
-        for (int j = 0; j < WIDTH; j++) {
-            mask[i][j] = t[i][j] > thresh;
-        }
+        for (int j = 0; j < WIDTH; j++)
+            mask[i][j] = sqrtf(square(gx[i][j]) + square(gy[i][j])) > thresh;
     }
 }
 
@@ -293,12 +292,23 @@ precompute_cache(
         struct lsdslam *slam,
         float Iref[HEIGHT][WIDTH],
         float Dref[HEIGHT][WIDTH],
-        float Vref[HEIGHT][WIDTH]
+        float Vref[HEIGHT][WIDTH],
+        float I[HEIGHT][WIDTH]
         )
 {
     memcpy(slam->cache.Iref, Iref, sizeof(slam->cache.Iref));
     memcpy(slam->cache.Dref, Dref, sizeof(slam->cache.Dref));
     memcpy(slam->cache.Vref, Vref, sizeof(slam->cache.Vref));
     create_mask(slam->cache.mask, Iref, slam->param.mask_thresh);
+
+#if 0
+    {
+        float k[3][3] = {
+            {0., 0., 0.};
+            {0., 0., 0.};
+            {0., 0., 0.};
+
+        slam->cache.I_u
+#endif
 }
 

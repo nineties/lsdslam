@@ -90,9 +90,14 @@ def gaussian_filter3x3(I):
     lib.gaussian_filter3x3(_fp(y), _fp(I))
     return y
 
-def sobel_filter3x3(I):
+def sobelx(I):
     y = np.zeros_like(I)
-    lib.sobel_filter3x3(_fp(y), _fp(I))
+    lib.sobelx(_fp(y), _fp(I))
+    return y
+
+def sobely(I):
+    y = np.zeros_like(I)
+    lib.sobely(_fp(y), _fp(I))
     return y
 
 class Param(Structure):
@@ -105,7 +110,10 @@ class ComputeCache(Structure):
             ('mask', c_bool * WIDTH * HEIGHT),
             ('Iref', c_float * WIDTH * HEIGHT),
             ('Dref', c_float * WIDTH * HEIGHT),
-            ('Vref', c_float * WIDTH * HEIGHT)
+            ('Vref', c_float * WIDTH * HEIGHT),
+            ('I',   c_float * WIDTH * HEIGHT),
+            ('I_u', c_float * WIDTH * HEIGHT),
+            ('I_v', c_float * WIDTH * HEIGHT),
             ]
 
 class LSDSLAMStruct(Structure):
@@ -115,10 +123,16 @@ class LSDSLAMStruct(Structure):
             ]
 
 def precompute_cache(
-        Iref, Dref, Vref
+        slam,
+        Iref, Dref, Vref,
+        I
         ):
-    slam = LSDSLAMStruct()
     lib.precompute_cache(
             byref(slam),
-            _fp(Iref), _fp(Dref), _fp(Vref)
+            _fp(Iref), _fp(Dref), _fp(Vref), _fp(I)
             )
+
+# Photometric Residual
+def rp(slam, p):
+    u, v = p
+    pass

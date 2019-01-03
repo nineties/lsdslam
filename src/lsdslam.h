@@ -16,8 +16,8 @@ struct compute_cache {
 
     /* current frame */
     float I[HEIGHT][WIDTH];
-    float I_x[HEIGHT][WIDTH];
-    float I_y[HEIGHT][WIDTH];
+    float I_u[HEIGHT][WIDTH];
+    float I_v[HEIGHT][WIDTH];
 };
 
 struct param {
