@@ -177,14 +177,15 @@ precompute_KT(float A[3][3], float b[3],
 
 /**** Projection to camera plane ****/
 void
-pi(float y[2], float x[3])
+pi(float y[3], float x[3])
 {
     y[0] = x[0]/x[2];
     y[1] = x[1]/x[2];
+    y[2] = 1/x[2];
 }
 
 void
-pi_x(float y[2][3], float x[3])
+pip_x(float y[2][3], float x[3])
 {
     y[0][0] = 1/x[2];
     y[0][1] = 0;
@@ -192,4 +193,20 @@ pi_x(float y[2][3], float x[3])
     y[1][0] = 0;
     y[1][1] = 1/x[2];
     y[1][2] = -x[1]/(x[2]*x[2]);
+}
+
+void
+piinv(float y[3], float x[2], float d)
+{
+    y[0] = x[0]/d;
+    y[1] = x[1]/d;
+    y[2] = 1/d;
+}
+
+void
+piinv_d(float y[3], float x[2], float d)
+{
+    y[0] = -x[0]/(d*d);
+    y[1] = -x[1]/(d*d);
+    y[2] = -1/(d*d);
 }

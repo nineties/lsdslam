@@ -49,16 +49,23 @@ def T_formula(rho, n, theta, t, x):
 
 T = lambdify((rho, n, theta, t, x), T_formula(rho, n, theta, t, x))
 
-def pi_formula(x1, x2, x3):
+def pip_formula(x1, x2, x3):
     return Matrix([x1/x3, x2/x3])
 
-pi = lambdify((x,), pi_formula(x1, x2, x3))
+def pid_formula(x3):
+    return 1/x3
 
-def pi_x_formula(x1, x2, x3):
-    f = pi_formula(x1, x2, x3)
+def pi_formula(x1, x2, x3):
+    return pip_formula(x1, x2, x3).col_join(Matrix([pid_formula(x3)]))
+
+pi  = lambdify((x,), pi_formula(x1, x2, x3))
+pip = lambdify((x,), pip_formula(x1, x2, x3))
+
+def pip_x_formula(x1, x2, x3):
+    f = pip_formula(x1, x2, x3)
     return diff(f, x1).row_join(diff(f, x2)).row_join(diff(f, x3))
 
-pi_x = lambdify((x,), pi_x_formula(x1, x2, x3))
+pip_x = lambdify((x,), pip_x_formula(x1, x2, x3))
 
 def test_R():
     n = random_norm(3)
@@ -134,12 +141,12 @@ def test_pi():
             L.pi(x)
             )
 
-def test_pi_x():
+def test_pip_x():
     x = random_vec(3)
 
     assert_allclose(
-            pi_x(x),
-            L.pi_x(x)
+            pip_x(x),
+            L.pip_x(x)
             )
 
 def test_photometric_residual():

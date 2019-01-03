@@ -59,11 +59,11 @@ def precompute_KT(K, rho, n, theta, t):
     return A, b
 
 def pi(x):
-    y = np.zeros(2, dtype=np.float32)
+    y = np.zeros(3, dtype=np.float32)
     lib.pi(_fp(y), _fp(x))
     return y
 
-def pi_x(x):
+def pip_x(x):
     y = np.zeros((2, 3), dtype=np.float32)
-    lib.pi_x(_fp(y), _fp(x))
+    lib.pip_x(_fp(y), _fp(x))
     return y
