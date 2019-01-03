@@ -302,7 +302,7 @@ def test_photometric_residual():
 
 
     # Compute with the lib
-    param = L.Param(20., 3, K)
+    param = L.Param(1., 1e5, 20., 3, K)
     cache = L.Cache()
     L.precompute_cache(
         param, cache,
@@ -328,7 +328,7 @@ def test_photometric_residual_over_frame():
     rho = 1.1
     K = (np.eye(3) + np.random.randn(3, 3)*1e-5).astype(np.float32)
 
-    param = L.Param(20., 3, K)
+    param = L.Param(1., 1e5, 20., 3, K)
     cache = L.Cache()
     L.precompute_cache(
         param, cache,

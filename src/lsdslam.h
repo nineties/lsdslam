@@ -40,6 +40,8 @@ struct cache {
 };
 
 struct param {
+    float initial_D;
+    float initial_V;
     float mask_thresh;  /* use points which satisfy ||nabla I|| > mask_thresh */
     float huber_delta;  /* huber-norm */
     float K[3][3];      /* camera matrix */

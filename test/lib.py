@@ -102,11 +102,15 @@ def solve(A, b):
 
 class Param(Structure):
     _fields_ = [
+            ('initial_D', c_float),
+            ('initial_V', c_float),
             ('mask_thresh', c_float),
             ('huber_delta', c_float),
             ('K', c_float * 3 * 3)
             ]
-    def __init__(self, mask_thresh, huber_delta, K):
+    def __init__(self, initial_D, initial_V, mask_thresh, huber_delta, K):
+        self.initial_D = initial_D
+        self.initial_V = initial_V
         self.mask_thresh = mask_thresh
         self.huber_delta = huber_delta
 
