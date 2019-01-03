@@ -345,7 +345,7 @@ rp(struct lsdslam *slam, int u_ref, int v_ref)
     int v = (int)p[1];
 
     if (u < 0 || u >= HEIGHT || v < 0 || v >= WIDTH)
-        return 0.0;
+        return NAN;
 
     return cache->Iref[u_ref][v_ref] - cache->I[u][v];
 }

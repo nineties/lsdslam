@@ -285,7 +285,7 @@ def test_rp():
     x = T(rho, n, theta, t, x_ref).flatten()
     u, v = pip(K.dot(x)).flatten()
     if u < 0 or u >= I.shape[0] or v < 0 or v >= I.shape[1]:
-        rp1 = 0
+        rp1 = np.nan
     else:
         rp1 = Iref[p_ref] - I[int(u), int(v)]
 
