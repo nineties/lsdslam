@@ -257,12 +257,12 @@ def test_gaussian_filter():
 def test_sobel_filter():
     I = read_image('test/I.png')/255.
     assert_allclose(
-            sobel(I, axis=0, mode='constant'),
+            sobel(I, axis=0, mode='constant')/4,
             L.sobely(I),
             rtol=0, atol=1e-5
             )
     assert_allclose(
-            sobel(I, axis=1, mode='constant'),
+            sobel(I, axis=1, mode='constant')/4,
             L.sobelx(I),
             rtol=0, atol=1e-5
             )
