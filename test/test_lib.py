@@ -27,8 +27,8 @@ def random_norm(n):
     v = random_vec(n)
     return v/np.sqrt(v.dot(v))
 
-def read_image(path):
-    return np.asarray(Image.open(path).convert('P').resize(L.SIZE), dtype=np.float32)
+def read_image(path, dtype=np.float32):
+    return np.asarray(Image.open(path).convert('P').resize(L.SIZE), dtype=dtype)
 
 def test_mul3x3():
     A = np.random.randn(3, 3).astype(np.float32)
