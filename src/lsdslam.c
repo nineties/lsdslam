@@ -173,7 +173,7 @@ precompute_T(float A[3][3], float b[3], float rho, float n[3], float theta, floa
 
 /* Ax + b = sK(RK^-1x + t) */
 void
-precompute_KTKinv(float A[3][3], float b[3],
+precompute_tau(float A[3][3], float b[3],
         float K[3][3], float rho, float n[3], float theta, float t[3])
 {
     float _A[3][3];
@@ -323,7 +323,7 @@ precompute_cache(
     gradu(cache->I_u, I);
     gradv(cache->I_v, I);
 
-    precompute_KTKinv(cache->KTKinv_A, cache->KTKinv_b, K, rho, n, theta, t);
+    precompute_tau(cache->tau_A, cache->tau_b, K, rho, n, theta, t);
 }
 
 // Photometric Residual
@@ -338,7 +338,7 @@ rp(struct lsdslam *slam, int u_ref, int v_ref)
     float p[3];
 
     piinv(x_ref, p_ref, d);
-    affine3d(x, cache->KTKinv_A, cache->KTKinv_b, x_ref);
+    affine3d(x, cache->tau_A, cache->tau_b, x_ref);
     pi(p, x);
 
     int u = (int)p[0];

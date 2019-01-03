@@ -19,9 +19,8 @@ struct compute_cache {
     float I_u[HEIGHT][WIDTH];
     float I_v[HEIGHT][WIDTH];
 
-    /* KTK^-1 */
-    float KTKinv_A[3][3];
-    float KTKinv_b[3];
+    float tau_A[3][3];
+    float tau_b[3];
 };
 
 struct param {

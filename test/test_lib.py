@@ -196,7 +196,7 @@ def test_KTKinv():
     rho = np.random.randn()
     K = np.random.randn(3, 3).astype(np.float32)
 
-    A, b = L.precompute_KTKinv(K, rho, n, theta, t)
+    A, b = L.precompute_tau(K, rho, n, theta, t)
     assert_allclose(
             K.dot(T(rho, n, theta, t, np.linalg.inv(K).dot(x)).flatten()),
             A.dot(x) + b
