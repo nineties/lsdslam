@@ -1,7 +1,13 @@
 import numpy as np
-from ctypes import cdll, c_float, POINTER
+from ctypes import cdll, c_int, c_float, POINTER
 
 lib = cdll.LoadLibrary('src/liblsdslam.so')
+
+lib.get_imagewidth.restype = c_int
+lib.get_imageheight.restype = c_int
+
+# Image size
+size = (lib.get_imagewidth(), lib.get_imageheight())
 
 def _fp(arr):
     return arr.ctypes.data_as(POINTER(c_float))

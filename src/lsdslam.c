@@ -2,6 +2,18 @@
 #include <math.h>
 #include "lsdslam.h"
 
+int
+get_imagewidth(void)
+{
+    return WIDTH;
+}
+
+int
+get_imageheight(void)
+{
+    return HEIGHT;
+}
+
 /* matrix-vector multiplication */
 void
 mulmv3d(float y[3], float A[3][3], float x[3])

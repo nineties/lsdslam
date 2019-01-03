@@ -1,7 +1,7 @@
 import numpy as np
 from sympy import Matrix, symbols, diff, simplify, lambdify, transpose, cos, sin, exp, eye
 
-from util import assert_allclose, repeat, random_vec, random_norm
+from util import assert_allclose, repeat, random_vec, random_norm, read_image
 import lsdslam.lib as L
 
 # Formulas
@@ -149,3 +149,8 @@ def test_pi_x():
             pi_x(x),
             L.pi_x(x)
             )
+
+def test_photometric_residual():
+    I = read_image('test/I.png')
+    Iref = read_image('test/Iref.png')
+    Dref = read_image('test/Dref.png')

@@ -1,5 +1,8 @@
 from nose.tools import make_decorator
 import numpy as np
+from PIL import Image
+
+import lsdslam.lib as L
 
 # Utilities
 
@@ -21,3 +24,5 @@ def random_norm(n):
     v = random_vec(n)
     return v/np.sqrt(v.dot(v))
 
+def read_image(path):
+    return np.asarray(Image.open(path).convert('P').resize(L.size), dtype=np.float32)
