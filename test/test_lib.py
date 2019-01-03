@@ -153,6 +153,12 @@ def test_rotate_n():
             A[i].dot(x)
             )
 
+def test_identity():
+    x = random_vec(3)
+    rho, n, theta, t = L.identity()
+    y = T(rho, n, theta, t, x)
+    assert_allclose(y.flatten(), x)
+
 def test_pi():
     x = random_vec(3)
 

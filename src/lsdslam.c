@@ -195,6 +195,19 @@ compute_R_n(float y[3][3][3], float n[3], float theta)
     y[2][1][0] = s;
 }
 
+EXPORT void
+compute_identity(float *rho, float n[3], float *theta, float t[3])
+{
+    *rho = 0.0;
+    n[0] = 1.0;
+    n[1] = 0.0;
+    n[2] = 0.0;
+    *theta = 0.0;
+    t[0] = 0.0;
+    t[1] = 0.0;
+    t[2] = 0.0;
+}
+
 /**** Projection to camera plane ****/
 EXPORT void
 pi(float y[3], float x[3])

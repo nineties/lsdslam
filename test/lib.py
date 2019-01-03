@@ -48,6 +48,14 @@ def R_n(n, theta):
     lib.compute_R_n(_fp(y), _fp(n), c_float(theta))
     return y
 
+def identity():
+    rho = c_float()
+    n = np.zeros(3, dtype=np.float32)
+    theta = c_float()
+    t = np.zeros(3, dtype=np.float32)
+    lib.compute_identity(byref(rho), _fp(n), byref(theta), _fp(t))
+    return rho.value, n, theta.value, t
+
 def pi(x):
     y = np.zeros(3, dtype=np.float32)
     lib.pi(_fp(y), _fp(x))
