@@ -302,7 +302,7 @@ def test_photometric_residual():
 
         # weight
         I_Dref = I_y.dot(s*K.dot(R(n, theta)).dot(Kinv)).dot(piinv_d(p_ref, Dref[p_ref]))
-        w1 = 2*I.var() + (I_Dref[0])**2 * Vref[p_ref]
+        w1 = 1/(2*I.var() + (I_Dref[0])**2 * Vref[p_ref])
 
 
     # Compute with the lib

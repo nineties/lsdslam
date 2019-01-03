@@ -463,8 +463,7 @@ photometric_residual(struct lsdslam *slam,
     /* d(pi^-1)/d(Dref) */
     float piinv_Dref[3];
     piinv_d(piinv_Dref, p_ref, cache->Dref[u_ref][v_ref]);
+    float I_Dref = I_x[0]*piinv_Dref[0] + I_x[1]*piinv_Dref[1] + I_x[2]*piinv_Dref[2];
 
-    *w = 2*cache->Ivar +
-         square(I_x[0]*piinv_Dref[0] + I_x[1]*piinv_Dref[1] +
-           I_x[2]*piinv_Dref[2]) * cache->Vref[u_ref][v_ref];
+    *w = 1/(2*cache->Ivar + square(I_Dref) * cache->Vref[u_ref][v_ref]);
 }
