@@ -383,6 +383,28 @@ create_mask(bool mask[HEIGHT][WIDTH], float I[HEIGHT][WIDTH], float thresh)
     }
 }
 
+static float
+huber(float delta, float r)
+{
+    if (r > delta)
+        return r - delta/2;
+    else if (r < -delta)
+        return -r - delta/2;
+    else
+        return r*r/(2*delta);
+}
+
+static float
+huber_r(float delta, float r)
+{
+    if (r > delta)
+        return 1;
+    else if (r < -delta)
+        return -1;
+    else
+        return r/delta;
+}
+
 void
 precompute_cache(
         struct lsdslam *slam,
