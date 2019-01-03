@@ -261,9 +261,9 @@ def test_photometric_residual():
     I = read_image('test/I.png')
     Iref = read_image('test/Iref.png')
     Dref = read_image('test/Dref.png')
-    Vref = np.ones_like(Dref)
+    Vref = np.ones_like(Iref)
 
-    t = random_norm(3)*0.01
+    t = random_vec(3)*0.01
     n = random_norm(3)
     theta = 0.001
     rho = 1.1
@@ -308,8 +308,8 @@ def test_photometric_residual():
         Iref, Dref, Vref, I,
         K, rho, n, theta, t
         )
-    rp2, J2 = L.photometric_residual(slam, p_ref)
+    rp2, J2, w = L.photometric_residual(slam, p_ref)
 
     assert_allclose(rp1, rp2)
     if not np.isnan(rp1):
-        assert_allclose(J1, J2)
+        assert_allclose(J1, J2, rtol=1e-1)

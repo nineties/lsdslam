@@ -385,21 +385,20 @@ precompute_cache(
     mul3x3_twice(cache->sKR_thetaKinv, K, sR_theta, Kinv);
 }
 
-// Compute photometric residual and its derivative wrt xi.
+// Compute photometric residual, derivative wrt xi and weight.
 // *res will be NaN for out-bound error.
 void
 photometric_residual(struct lsdslam *slam,
-        float *res, float J[8],
+        float *res, float J[8], float *w,
         int u_ref, int v_ref)
 {
     struct compute_cache *cache = &slam->cache;
-    float d = cache->Dref[u_ref][v_ref];
     float p_ref[2] = {u_ref, v_ref};
     float x[3];
     float y[3];
     float q[3];
 
-    piinv(x, p_ref, d);
+    piinv(x, p_ref, cache->Dref[u_ref][v_ref]);
     affine3d(y, cache->sKRKinv, cache->Kt, x);
     pi(q, y);
 
@@ -427,6 +426,8 @@ photometric_residual(struct lsdslam *slam,
         I_q[0]*pip_y[0][2] + I_q[1]*pip_y[1][2],
     };
 
+    /* ==== Compute d(r_p)/d(xi) ==== */
+
     /* transpose of d(tau)/d(xi) */
     float tau_xi_T[8][3] = {0};
 
@@ -450,4 +451,20 @@ photometric_residual(struct lsdslam *slam,
     mul_NTT(1, 3, 8, (float*)J, (float*)I_y, (float*)tau_xi_T);
     for (int i = 0; i < 8; i++)
         J[i] *= -1;
+
+    /* ==== Compute d(r_p)d(D_ref) */
+
+    /* dI/dx = dI/dy*d(tau)/dx
+     * Note: d(tau)/dx = sKRK^-1
+     */
+    float I_x[3];
+    mul_NTNT(1, 3, 3, (float*)I_x, (float*)I_y, (float*)cache->sKRKinv);
+
+    /* d(pi^-1)/d(Dref) */
+    float piinv_Dref[3];
+    piinv_d(piinv_Dref, p_ref, cache->Dref[u_ref][v_ref]);
+
+    *w = 2*cache->Ivar +
+         square(I_x[0]*piinv_Dref[0] + I_x[1]*piinv_Dref[1] +
+           I_x[2]*piinv_Dref[2]) * cache->Vref[u_ref][v_ref];
 }

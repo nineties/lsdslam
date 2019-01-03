@@ -141,6 +141,7 @@ lib.photometric_residual.restype = c_int
 def photometric_residual(slam, p):
     u, v = p
     res = c_float()
+    w = c_float()
     J = np.zeros(8, dtype=np.float32)
-    lib.photometric_residual(byref(slam), byref(res), _fp(J), c_int(u), c_int(v))
-    return res.value, J
+    lib.photometric_residual(byref(slam), byref(res), _fp(J), byref(w), c_int(u), c_int(v))
+    return res.value, J, w.value
