@@ -38,7 +38,12 @@ struct lsdslam_param {
     float huber_delta;  /* huber-norm */
 };
 
-struct lsdslam {
+struct lsdslam_tracker {
+    struct lsdslam_param param;
+    struct lsdslam_cache cache;
+};
+
+struct lsdslam_mapper {
     struct lsdslam_param param;
     struct lsdslam_cache cache;
 };

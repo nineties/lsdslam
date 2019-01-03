@@ -302,13 +302,14 @@ def test_photometric_residual():
 
 
     # Compute with the lib
-    slam = L.LSDSLAMStruct()
+    param = L.Param()
+    cache = L.Cache()
     L.precompute_cache(
-        slam,
+        param, cache,
         Iref, Dref, Vref, I,
         K, rho, n, theta, t
         )
-    rp2, J2, w2 = L.photometric_residual(slam, p_ref)
+    rp2, J2, w2 = L.photometric_residual(cache, p_ref)
 
     assert_allclose(rp1, rp2)
     if not np.isnan(rp1):
@@ -327,12 +328,13 @@ def test_photometric_residual_over_frame():
     rho = 1.1
     K = (np.eye(3) + np.random.randn(3, 3)*1e-5).astype(np.float32)
 
-    slam = L.LSDSLAMStruct()
-    slam.param.mask_thresh = 20
-    slam.param.huber_delta = 3
+    param = L.Param()
+    cache = L.Cache()
+    param.mask_thresh = 20
+    param.huber_delta = 3
     L.precompute_cache(
-        slam,
+        param, cache,
         Iref, Dref, Vref, I,
         K, rho, n, theta, t
         )
-    L.photometric_residual_over_frame(slam)
+    L.photometric_residual_over_frame(param, cache)

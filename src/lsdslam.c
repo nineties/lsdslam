@@ -390,7 +390,8 @@ huber_r(float delta, float r)
 
 EXPORT void
 precompute_cache(
-        struct lsdslam *slam,
+        struct lsdslam_param *param,
+        struct lsdslam_cache *cache,
         float Iref[HEIGHT][WIDTH],
         float Dref[HEIGHT][WIDTH],
         float Vref[HEIGHT][WIDTH],
@@ -402,8 +403,7 @@ precompute_cache(
         float t[3]
         )
 {
-    struct lsdslam_cache *cache = &slam->cache;
-    create_mask(cache->mask, Iref, slam->param.mask_thresh);
+    create_mask(cache->mask, Iref, param->mask_thresh);
 
     memcpy(cache->Iref, Iref, sizeof(cache->Iref));
     memcpy(cache->Dref, Dref, sizeof(cache->Dref));
@@ -448,11 +448,11 @@ precompute_cache(
 // Compute photometric residual, derivative wrt xi and weight.
 // *res will be NaN for out-bound error.
 EXPORT int
-photometric_residual(struct lsdslam *slam,
+photometric_residual(
+        struct lsdslam_cache *cache,
         float *rp, float *wp, float J[8],
         int u_ref, int v_ref)
 {
-    struct lsdslam_cache *cache = &slam->cache;
     float p_ref[2] = {u_ref, v_ref};
     float x[3];
     float y[3];
@@ -532,12 +532,11 @@ photometric_residual(struct lsdslam *slam,
 /* Compute E_p, g = nabla E_p, H = nabla^2 E_p */
 EXPORT void
 photometric_residual_over_frame(
-        struct lsdslam *slam,
+        struct lsdslam_param *param,
+        struct lsdslam_cache *cache,
         float *E, float g[9], float H[9][9]
         )
 {
-    struct lsdslam_cache *cache = &slam->cache;
-    struct lsdslam_param *param = &slam->param;
     int N = 0;
 
     *E = 0;
@@ -552,7 +551,7 @@ photometric_residual_over_frame(
             if (!cache->mask[u][v])
                 continue;
 
-            if (photometric_residual(slam, &rp, &wp, J, u, v) < 0)
+            if (photometric_residual(cache, &rp, &wp, J, u, v) < 0)
                 continue;
 
             *E += wp * huber(param->huber_delta, rp);
@@ -579,3 +578,4 @@ photometric_residual_over_frame(
             H[i][j] /= N * param->huber_delta;
     }
 }
+
