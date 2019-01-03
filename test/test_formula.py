@@ -4,15 +4,18 @@ from sympy import Matrix, symbols, diff, simplify, lambdify, transpose, cos, sin
 from util import assert_allclose, random_vec, random_norm, read_image
 import lsdslam.lib as L
 
-# Formulas
+#==== Formulas ====
 x1, x2, x3 = symbols('x1 x2 x3')
-x = Matrix([x1, x2, x3])        # 3d point
-p = Matrix(symbols('u v'))      # 2d point
 n1, n2, n3 = symbols('n1 n2 n3')
-n = Matrix([n1, n2, n3])        # axis of rotation
-theta = symbols('theta')        # angle of rotation
-t = Matrix(symbols('t1 t2 t3')) # translation vector
-rho = symbols('rho')            # scale factor = exp(rho)
+t1, t2, t3 = symbols('t1 t2 t3')
+u, v = symbols('u v')
+d = symbols('d')
+x = Matrix([x1, x2, x3])   # 3d point
+p = Matrix([u, v])         # 2d point
+n = Matrix([n1, n2, n3])   # axis of rotation
+theta = symbols('theta')   # angle of rotation
+t = Matrix([t1, t2, t3])   # translation vector
+rho = symbols('rho')       # scale factor = exp(rho)
 
 # Rodrigues's rotation formula
 def R_formula(n, theta):
@@ -66,6 +69,14 @@ def pip_x_formula(x1, x2, x3):
     return diff(f, x1).row_join(diff(f, x2)).row_join(diff(f, x3))
 
 pip_x = lambdify((x,), pip_x_formula(x1, x2, x3))
+
+def piinv_formula(u, v, d):
+    return Matrix([u/d, v/d, 1/d])
+
+piinv = lambdify((p, d), piinv_formula(u, v, d))
+piinv_d = lambdify((p, d), diff(piinv_formula(u, v, d), d))
+
+#==== Tests ====
 
 def test_R():
     n = random_norm(3)
@@ -147,6 +158,24 @@ def test_pip_x():
     assert_allclose(
             pip_x(x),
             L.pip_x(x)
+            )
+
+def test_piinv():
+    x = random_vec(2)
+    d = np.random.randn()
+
+    assert_allclose(
+            piinv(x, d).flatten(),
+            L.piinv(x, d)
+            )
+
+def test_piinv_d():
+    x = random_vec(2)
+    d = np.random.randn()
+
+    assert_allclose(
+            piinv_d(x, d).flatten(),
+            L.piinv_d(x, d)
             )
 
 def test_photometric_residual():

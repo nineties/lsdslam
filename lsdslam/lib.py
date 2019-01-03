@@ -67,3 +67,13 @@ def pip_x(x):
     y = np.zeros((2, 3), dtype=np.float32)
     lib.pip_x(_fp(y), _fp(x))
     return y
+
+def piinv(p, d):
+    y = np.zeros(3, dtype=np.float32)
+    lib.piinv(_fp(y), _fp(p), c_float(d))
+    return y
+
+def piinv_d(p, d):
+    y = np.zeros(3, dtype=np.float32)
+    lib.piinv_d(_fp(y), _fp(p), c_float(d))
+    return y
