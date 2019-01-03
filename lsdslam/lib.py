@@ -1,7 +1,7 @@
 import numpy as np
 from ctypes import cdll, c_bool, c_int, c_float, POINTER, Structure, byref
 
-lib = cdll.LoadLibrary('src/liblsdslam.so')
+lib = cdll.LoadLibrary('src/liblsdslam_test.so')
 
 lib.get_imagewidth.restype = c_int
 lib.get_imageheight.restype = c_int
@@ -47,12 +47,6 @@ def R_n(n, theta):
     y = np.zeros((3, 3, 3), dtype=np.float32)
     lib.compute_R_n(_fp(y), _fp(n), c_float(theta))
     return y
-
-def precompute_T(rho, n, theta, t):
-    A = np.zeros((3, 3), dtype=np.float32)
-    b = np.zeros(3, dtype=np.float32)
-    lib.precompute_T(_fp(A), _fp(b), c_float(rho), _fp(n), c_float(theta), _fp(t))
-    return A, b
 
 def pi(x):
     y = np.zeros(3, dtype=np.float32)

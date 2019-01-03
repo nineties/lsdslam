@@ -24,7 +24,7 @@ get_imageheight(void)
 }
 
 /* matrix-vector multiplication */
-void
+EXPORT void
 mul_NTNT(int l, int m, int n, float *c, float *a, float *b)
 {
     for (int i = 0; i < l; i++) {
@@ -38,7 +38,7 @@ mul_NTNT(int l, int m, int n, float *c, float *a, float *b)
     }
 }
 
-void
+EXPORT void
 mul_NTT(int l, int m, int n, float *c, float *a, float *b)
 {
     for (int i = 0; i < l; i++) {
@@ -52,7 +52,7 @@ mul_NTT(int l, int m, int n, float *c, float *a, float *b)
     }
 }
 
-void
+EXPORT void
 mulmv3d(float y[3], float A[3][3], float x[3])
 {
     for (int i = 0; i < 3; i++) {
@@ -64,7 +64,7 @@ mulmv3d(float y[3], float A[3][3], float x[3])
     }
 }
 
-void
+EXPORT void
 mul3x3(float y[3][3], float a[3][3], float b[3][3])
 {
     for (int i = 0; i < 3; i++) {
@@ -78,7 +78,7 @@ mul3x3(float y[3][3], float a[3][3], float b[3][3])
     }
 }
 
-void
+EXPORT void
 mul3x3_twice(float y[3][3], float a[3][3], float b[3][3], float c[3][3])
 {
     float t[3][3];
@@ -87,7 +87,7 @@ mul3x3_twice(float y[3][3], float a[3][3], float b[3][3], float c[3][3])
 }
 
 /* determinant of 3x3 matrix */
-float
+EXPORT float
 det3x3(float x[3][3])
 {
     return x[0][0]*x[1][1]*x[2][2] -
@@ -99,7 +99,7 @@ det3x3(float x[3][3])
 }
 
 /* inverse of 3x3 matrix */
-void
+EXPORT void
 inv3x3(float y[3][3], float x[3][3])
 {
     float det = det3x3(x);
@@ -118,7 +118,7 @@ inv3x3(float y[3][3], float x[3][3])
     y[2][2] = (x[0][0]*x[1][1] - x[0][1]*x[1][0])/det;
 }
 
-void
+EXPORT void
 affine3d(float y[3], float A[3][3], float b[3], float x[3])
 {
     mulmv3d(y, A, x);
@@ -131,7 +131,7 @@ affine3d(float y[3], float A[3][3], float b[3], float x[3])
 /* Rodrigues's rotation formula
  * Rotate x according to axis n and angle theta.
  * The result is stored to y */
-void
+EXPORT void
 compute_R(float y[3][3], float n[3], float theta)
 {
     float s = sinf(theta);
@@ -149,7 +149,7 @@ compute_R(float y[3][3], float n[3], float theta)
 }
 
 // dR/d(theta)
-void
+EXPORT void
 compute_R_theta(float y[3][3], float n[3], float theta)
 {
     float s = sinf(theta);
@@ -167,7 +167,7 @@ compute_R_theta(float y[3][3], float n[3], float theta)
 }
 
 // dR/dn
-void
+EXPORT void
 compute_R_n(float y[3][3][3], float n[3], float theta)
 {
     float s = sinf(theta);
@@ -195,25 +195,8 @@ compute_R_n(float y[3][3][3], float n[3], float theta)
     y[2][1][0] = s;
 }
 
-/**** Similarity Transformation* ****/
-/* Ax+b = sRx + t */
-void
-precompute_T(float A[3][3], float b[3], float rho, float n[3], float theta, float t[3])
-{
-    for (int i = 0; i < 3; i++)
-        b[i] = t[i];
-
-    compute_R(A, n, theta);
-    float s = expf(rho);
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            A[i][j] *= s;
-        }
-    }
-}
-
 /**** Projection to camera plane ****/
-void
+EXPORT void
 pi(float y[3], float x[3])
 {
     y[0] = x[0]/x[2];
@@ -221,7 +204,7 @@ pi(float y[3], float x[3])
     y[2] = 1/x[2];
 }
 
-void
+EXPORT void
 pip_x(float y[2][3], float x[3])
 {
     y[0][0] = 1/x[2];
@@ -232,7 +215,7 @@ pip_x(float y[2][3], float x[3])
     y[1][2] = -x[1]/(x[2]*x[2]);
 }
 
-void
+EXPORT void
 piinv(float y[3], float x[2], float d)
 {
     y[0] = x[0]/d;
@@ -240,7 +223,7 @@ piinv(float y[3], float x[2], float d)
     y[2] = 1/d;
 }
 
-void
+EXPORT void
 piinv_d(float y[3], float x[2], float d)
 {
     y[0] = -x[0]/(d*d);
@@ -248,7 +231,7 @@ piinv_d(float y[3], float x[2], float d)
     y[2] = -1/(d*d);
 }
 
-void
+EXPORT void
 filter3x3(float y[HEIGHT][WIDTH], float k[3][3], float x[HEIGHT][WIDTH])
 {
     float pad_x[HEIGHT+2][WIDTH+2] = {0};
@@ -271,7 +254,7 @@ filter3x3(float y[HEIGHT][WIDTH], float k[3][3], float x[HEIGHT][WIDTH])
     }
 }
 
-void
+EXPORT void
 gaussian_filter3x3(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
 {
     float k[3][3] = {
@@ -282,7 +265,7 @@ gaussian_filter3x3(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
     filter3x3(y, k, x);
 }
 
-void
+EXPORT void
 gradu(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
 {
     float k[3][3] = {
@@ -293,7 +276,7 @@ gradu(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
     filter3x3(y, k, x);
 }
 
-void
+EXPORT void
 gradv(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
 {
     float k[3][3] = {
@@ -304,7 +287,7 @@ gradv(float y[HEIGHT][WIDTH], float x[HEIGHT][WIDTH])
     filter3x3(y, k, x);
 }
 
-float
+EXPORT float
 variance(float x[HEIGHT][WIDTH])
 {
     float mean = 0.0;
@@ -323,7 +306,7 @@ variance(float x[HEIGHT][WIDTH])
 /* Solve linear system Ax=b of degree n
  * NB: This function overwrite A and b
  */
-void
+EXPORT void
 solve(float *x, int n, float *A, float *b)
 {
     for (int k = 0; k < n; k++) {
@@ -370,7 +353,7 @@ solve(float *x, int n, float *A, float *b)
     }
 }
 
-void
+EXPORT void
 create_mask(bool mask[HEIGHT][WIDTH], float I[HEIGHT][WIDTH], float thresh)
 {
     float gu[HEIGHT][WIDTH];
@@ -383,7 +366,7 @@ create_mask(bool mask[HEIGHT][WIDTH], float I[HEIGHT][WIDTH], float thresh)
     }
 }
 
-static float
+EXPORT float
 huber(float delta, float r)
 {
     if (r > delta)
@@ -394,7 +377,7 @@ huber(float delta, float r)
         return r*r/(2*delta);
 }
 
-static float
+EXPORT float
 huber_r(float delta, float r)
 {
     if (r > delta)
@@ -405,7 +388,7 @@ huber_r(float delta, float r)
         return r/delta;
 }
 
-void
+EXPORT void
 precompute_cache(
         struct lsdslam *slam,
         float Iref[HEIGHT][WIDTH],
@@ -464,7 +447,7 @@ precompute_cache(
 
 // Compute photometric residual, derivative wrt xi and weight.
 // *res will be NaN for out-bound error.
-int
+EXPORT int
 photometric_residual(struct lsdslam *slam,
         float *rp, float *wp, float J[8],
         int u_ref, int v_ref)
@@ -547,7 +530,7 @@ photometric_residual(struct lsdslam *slam,
 }
 
 /* Compute E_p, g = nabla E_p, H = nabla^2 E_p */
-void
+EXPORT void
 photometric_residual_over_frame(
         struct lsdslam *slam,
         float *E, float g[9], float H[9][9]

@@ -6,6 +6,12 @@
 #define WIDTH   240
 #define HEIGHT  180
 
+#ifdef BUILD_FOR_TEST
+#define EXPORT
+#else
+#define EXPORT static
+#endif
+
 struct lsdslam_cache {
     bool  mask[HEIGHT][WIDTH];
 

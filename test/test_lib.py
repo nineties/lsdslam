@@ -175,19 +175,6 @@ def test_rotate_n():
             A[i].dot(x)
             )
 
-def test_T():
-    x = random_vec(3)
-    n = random_norm(3)
-    t = random_vec(3)
-    theta = np.random.randn()
-    rho = np.random.randn()
-
-    A, b = L.precompute_T(rho, n, theta, t)
-    assert_allclose(
-            T(rho, n, theta, t, x).flatten(),
-            A.dot(x) + b
-            )
-
 def test_pi():
     x = random_vec(3)
 
