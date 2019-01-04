@@ -367,14 +367,14 @@ variance(float x[HEIGHT][WIDTH])
  * NB: This function overwrite A and b
  */
 EXPORT void
-solve(float *x, int n, float *A, float *b)
+solve(float x[7], int dof, float A[7][7], float b[7])
 {
-    for (int k = 0; k < n; k++) {
+    for (int k = 0; k < dof; k++) {
         /* select pivot */
         int pivot = k;
-        float pmax = fabs(A[k*n + k]);
-        for (int i = k+1; i < n; i++) {
-            float p = fabs(A[i*n + k]);
+        float pmax = fabs(A[k][k]);
+        for (int i = k+1; i < dof; i++) {
+            float p = fabs(A[i][k]);
             if (p > pmax) {
                 pivot = i;
                 pmax = p;
@@ -387,29 +387,29 @@ solve(float *x, int n, float *A, float *b)
 
         if (pivot != k) {
             /* swap row k and pivot */
-            for (int j = 0; j < n; j++) {
-                float tmp = A[k*n + j];
-                A[k*n + j] = A[pivot*n + j];
-                A[pivot*n + j] = tmp;
+            for (int j = 0; j < dof; j++) {
+                float tmp = A[k][j];
+                A[k][j] = A[pivot][j];
+                A[pivot][j] = tmp;
             }
             float tmp = b[k];
             b[k] = b[pivot];
             b[pivot] = tmp;
         }
 
-        for (int i = k+1; i < n; i++) {
-            float c = A[i*n + k]/A[k*n + k];
-            for (int j = k+1; j < n; j++)
-                A[i*n + j] -= c*A[k*n + j];
-            A[i*n + k] = 0;
+        for (int i = k+1; i < dof; i++) {
+            float c = A[i][k]/A[k][k];
+            for (int j = k+1; j < dof; j++)
+                A[i][j] -= c*A[k][j];
+            A[i][k] = 0;
             b[i] -= c*b[k];
         }
     }
-    for (int i = n-1; i >= 0; i--) {
+    for (int i = dof-1; i >= 0; i--) {
         float tmp = b[i];
-        for (int j = n-1; j > i; j--)
-            tmp -= x[j] * A[i*n + j];
-        x[i] = tmp / A[i*n + i];
+        for (int j = dof-1; j > i; j--)
+            tmp -= x[j] * A[i][j];
+        x[i] = tmp / A[i][i];
     }
 }
 
@@ -504,7 +504,7 @@ precompute_cache(
 EXPORT int
 photometric_residual(
         struct cache *cache,
-        float *rp, float *wp, float J[7],
+        int dof, float *rp, float *wp, float J[7],
         int u_ref, int v_ref)
 {
     float p_ref[2] = {u_ref, v_ref};
@@ -523,6 +523,8 @@ photometric_residual(
         *rp = NAN;
         return -1;
     }
+
+    //printf("%d, %d, %d, %d\n", u_ref, v_ref, u, v);
 
     *rp = cache->Iref[u_ref][v_ref] - cache->I[u][v];
 
@@ -545,24 +547,25 @@ photometric_residual(
     /* transpose of d(tau)/d(xi) */
     float tau_xi_T[7][3];
 
-    mulmv3d(tau_xi_T[0], cache->sKRKinv, x);       // d(tau)/d(rho)(x) = sKRK^-1x 
-    mulmv3d(tau_xi_T[1], cache->sKR_nKinv[0], x);  // d(tau)/d(n_1)(x) = sKR_n_1K^-1x
-    mulmv3d(tau_xi_T[2], cache->sKR_nKinv[1], x);  // d(tau)/d(n_2)(x) = sKR_n_2K^-1x
-    mulmv3d(tau_xi_T[3], cache->sKR_nKinv[2], x);  // d(tau)/d(n_3)(x) = sKR_n_3K^-1x
     // d(tau)/d(t)(x) = I
-    tau_xi_T[4][0] = 1;
-    tau_xi_T[4][1] = 0;
-    tau_xi_T[4][2] = 0;
-    tau_xi_T[5][0] = 0;
-    tau_xi_T[5][1] = 1;
-    tau_xi_T[5][2] = 0;
-    tau_xi_T[6][0] = 0;
-    tau_xi_T[6][1] = 0;
-    tau_xi_T[6][2] = 1;
+    tau_xi_T[0][0] = 1;
+    tau_xi_T[0][1] = 0;
+    tau_xi_T[0][2] = 0;
+    tau_xi_T[1][0] = 0;
+    tau_xi_T[1][1] = 1;
+    tau_xi_T[1][2] = 0;
+    tau_xi_T[2][0] = 0;
+    tau_xi_T[2][1] = 0;
+    tau_xi_T[2][2] = 1;
+    mulmv3d(tau_xi_T[3], cache->sKR_nKinv[0], x);  // d(tau)/d(n_1)(x) = sKR_n_1K^-1x
+    mulmv3d(tau_xi_T[4], cache->sKR_nKinv[1], x);  // d(tau)/d(n_2)(x) = sKR_n_2K^-1x
+    mulmv3d(tau_xi_T[5], cache->sKR_nKinv[2], x);  // d(tau)/d(n_3)(x) = sKR_n_3K^-1x
+    if (dof == 7)
+        mulmv3d(tau_xi_T[6], cache->sKRKinv, x);       // d(tau)/d(rho)(x) = sKRK^-1x 
 
     // J = -dI/d(xi)
-    mul_NTT(1, 3, 7, (float*)J, (float*)I_y, (float*)tau_xi_T);
-    for (int i = 0; i < 7; i++)
+    mul_NTT(1, 3, dof, (float*)J, (float*)I_y, (float*)tau_xi_T);
+    for (int i = 0; i < dof; i++)
         J[i] *= -1;
 
     /* ==== Compute d(r_p)d(D_ref) */
@@ -587,7 +590,7 @@ EXPORT void
 photometric_residual_over_frame(
         struct param *param,
         struct cache *cache,
-        float *E, float g[7], float H[7][7]
+        int dof, float *E, float g[7], float H[7][7]
         )
 {
     int N = 0;
@@ -604,17 +607,17 @@ photometric_residual_over_frame(
             if (!cache->mask[u][v])
                 continue;
 
-            if (photometric_residual(cache, &rp, &wp, J, u, v) < 0)
+            if (photometric_residual(cache, dof, &rp, &wp, J, u, v) < 0)
                 continue;
 
             *E += wp * huber(param->huber_delta, rp);
 
-            for (int i = 0; i < 7; i++)
+            for (int i = 0; i < dof; i++)
                 g[i] += wp * huber_r(param->huber_delta, rp) * J[i];
 
             if (fabs(rp) < param->huber_delta) {
-                for (int i = 0; i < 7; i++) {
-                    for (int j = 0; j < 7; j++)
+                for (int i = 0; i < dof; i++) {
+                    for (int j = 0; j < dof; j++)
                         H[i][j] += wp*J[i]*J[j];
                 }
             }
@@ -624,10 +627,10 @@ photometric_residual_over_frame(
     }
 
     *E /= N;
-    for (int i = 0; i < 7; i++)
+    for (int i = 0; i < dof; i++)
         g[i] /= N;
-    for (int i = 0; i < 7; i++) {
-        for (int j = 0; j < 7; j++)
+    for (int i = 0; i < dof; i++) {
+        for (int j = 0; j < dof; j++)
             H[i][j] /= N * param->huber_delta;
     }
 }
@@ -717,7 +720,7 @@ tracker_estimate(
     float I[HEIGHT][WIDTH];
     copy_image(I, image);
     float xi[7] = {
-        0.0 /* rho */, n[0], n[1], n[2], t[0], t[1], t[2]
+        n[0], n[1], n[2], t[0], t[1], t[2], 0.0 /* rho */
     };
     float *n_ = xi + 1;
     float *t_ = xi + 4;
@@ -741,20 +744,21 @@ tracker_estimate(
         /* E_p component */
         photometric_residual_over_frame(
                 &tracker->param, &tracker->cache,
-                &E, g, H);
+                6, &E, g, H);
 
         /* Add lambda*I to avoid being singular matrix */
-        for (int i = 0; i < 7; i++)
-            H[i][i] += 1e-5;
-        solve(delta_xi, 7, (float*)H, g);
+        for (int i = 0; i < 6; i++)
+            H[i][i] *= 1.2;
 
+        solve(delta_xi, 6, H, g);
 
-        /* start from 1 for not updating rho */
-        for (int i = 1; i < 7; i++)
+        for (int i = 0; i < 6; i++)
             xi[i] -= delta_xi[i];
 
-        if (fabs((E-prevE)/prevE) < tracker->eps)
+        if (fabs((E-prevE)/prevE) < tracker->eps) {
+            printf("iteration=%d\n", i+1);
             break;
+        }
         prevE = E;
     }
     printf("E=%f\n", prevE);

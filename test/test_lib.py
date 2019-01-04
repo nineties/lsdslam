@@ -209,12 +209,17 @@ def test_variance():
     assert_allclose(I.var(), L.variance(I))
 
 def test_solve():
-    A = np.random.randn(8, 8).astype(np.float32)
-    b = np.random.randn(8).astype(np.float32)
+    A = np.random.randn(7, 7).astype(np.float32)
+    b = np.random.randn(7).astype(np.float32)
 
     assert_allclose(
             np.linalg.solve(A, b),
-            L.solve(A, b)
+            L.solve(7, A, b)
+            )
+
+    assert_allclose(
+            np.linalg.solve(A[:6,:6], b[:6]),
+            L.solve(6, A, b)[:6]
             )
 
 def test_photometric_residual():
@@ -250,11 +255,11 @@ def test_photometric_residual():
 
         s = np.exp(rho)
 
-        tau_xi[:, 0] = s*K.dot(R(n)).dot(Kinv).dot(x)
-        tau_xi[:, 1] = s*K.dot(R_n[0](n)).dot(Kinv).dot(x)
-        tau_xi[:, 2] = s*K.dot(R_n[1](n)).dot(Kinv).dot(x)
-        tau_xi[:, 3] = s*K.dot(R_n[2](n)).dot(Kinv).dot(x)
-        tau_xi[:, 4:] = np.eye(3)
+        tau_xi[:, :3] = np.eye(3)
+        tau_xi[:, 3] = s*K.dot(R_n[0](n)).dot(Kinv).dot(x)
+        tau_xi[:, 4] = s*K.dot(R_n[1](n)).dot(Kinv).dot(x)
+        tau_xi[:, 5] = s*K.dot(R_n[2](n)).dot(Kinv).dot(x)
+        tau_xi[:, 6] = s*K.dot(R(n)).dot(Kinv).dot(x)
 
         J1 = -I_y.dot(tau_xi)
 

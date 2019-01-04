@@ -94,12 +94,11 @@ lib.variance.restype = c_float
 def variance(I):
     return lib.variance(_fp(I))
 
-def solve(A, b):
+def solve(dof, A, b):
     x = np.zeros_like(b)
-    n = len(x)
     A = A.copy()
     b = b.copy()
-    lib.solve(_fp(x), c_int(n), _fp(A), _fp(b))
+    lib.solve(_fp(x), c_int(dof), _fp(A), _fp(b))
     return x
 
 class Param(Structure):
@@ -151,7 +150,7 @@ def photometric_residual(cache, p):
     res = c_float()
     w = c_float()
     J = np.zeros(7, dtype=np.float32)
-    lib.photometric_residual(byref(cache), byref(res), byref(w), _fp(J), c_int(u), c_int(v))
+    lib.photometric_residual(byref(cache), 7, byref(res), byref(w), _fp(J), c_int(u), c_int(v))
     return res.value, J, w.value
 
 def photometric_residual_over_frame(param, cache):
