@@ -43,10 +43,9 @@ class Tracker(object):
     def estimate(self, image):
         n = np.zeros(3, dtype=np.float32)
         t = np.zeros(3, dtype=np.float32)
-        theta = c_float()
         lib.tracker_estimate(
                 c_void_p(self.obj),
                 _bp(image),
-                _fp(n), byref(theta), _fp(t))
-        return n, theta.value, t
+                _fp(n), _fp(t))
+        return n, t
 
