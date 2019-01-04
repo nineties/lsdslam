@@ -3,7 +3,7 @@ LIBS=-lm
 
 all: liblsdslam.so liblsdslam_test.so
 
-liblsdslam.so: lsdslam.c
+liblsdslam.so: lsdslam.c lsdslam.h
 	gcc -o $@ $^ $(CFLAGS) $(LIBS)
 
 liblsdslam_test.so: lsdslam.c
