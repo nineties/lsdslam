@@ -722,8 +722,8 @@ tracker_estimate(
     float xi[7] = {
         n[0], n[1], n[2], t[0], t[1], t[2], 0.0 /* rho */
     };
-    float *n_ = xi + 1;
-    float *t_ = xi + 4;
+    float *n_ = xi;
+    float *t_ = xi + 3;
     float delta_xi[7];
     float g[7];
     float H[7][7];
@@ -769,10 +769,10 @@ tracker_estimate(
     timersub(&end, &start, &elapsed);
     printf("%fms\n", elapsed.tv_usec/1.0e3);
 
-    n[0] = xi[1];
-    n[1] = xi[2];
-    n[2] = xi[3];
-    t[0] = xi[4];
-    t[1] = xi[5];
-    t[2] = xi[6];
+    t[0] = xi[0];
+    t[1] = xi[1];
+    t[2] = xi[2];
+    n[0] = xi[3];
+    n[1] = xi[4];
+    n[2] = xi[5];
 }
