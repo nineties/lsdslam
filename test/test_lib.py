@@ -225,7 +225,7 @@ def test_solve():
 def test_photometric_residual():
     I = read_image('test/I.png')
     Iref = read_image('test/Iref.png')
-    Dref = read_image('test/Dref.png')
+    Dref = read_image('test/Dref.png') + 1 # +1 for making values positive
     Vref = np.ones_like(Iref)
 
     t = random_vec(3)*0.01
