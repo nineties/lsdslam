@@ -235,7 +235,7 @@ def test_photometric_residual():
     x = piinv(p_ref, Dref[p_ref]).flatten()
     y = K.dot(T(rho, n, t, Kinv.dot(x))).flatten()
     u, v = pip(y).flatten()
-    if u < 0 or u >= I.shape[0] or v < 0 or v >= I.shape[1]:
+    if np.isnan(u) or np.isnan(v) or u < 0 or u >= I.shape[0] or v < 0 or v >= I.shape[1]:
         rp1 = np.nan
     else:
         rp1 = Iref[p_ref] - I[int(u), int(v)]

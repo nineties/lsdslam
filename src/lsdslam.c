@@ -516,7 +516,7 @@ photometric_residual(
     int u = (int)q[0];
     int v = (int)q[1];
 
-    if (u < 0 || u >= HEIGHT || v < 0 || v >= WIDTH) {
+    if (isnan(q[0]) || isnan(q[1]) || u < 0 || u >= HEIGHT || v < 0 || v >= WIDTH) {
         *rp = NAN;
         return -1;
     }
