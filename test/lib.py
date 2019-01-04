@@ -123,6 +123,8 @@ class Cache(Structure):
             ('Iref', c_float * WIDTH * HEIGHT),
             ('Dref', c_float * WIDTH * HEIGHT),
             ('Vref', c_float * WIDTH * HEIGHT),
+            ('piinv', c_float * WIDTH * HEIGHT * 3),
+            ('piinv_d', c_float * WIDTH * HEIGHT * 3),
             ('I',   c_float * WIDTH * HEIGHT),
             ('I_u', c_float * WIDTH * HEIGHT),
             ('I_v', c_float * WIDTH * HEIGHT),
@@ -141,24 +143,25 @@ def set_keyframe(param, cache, Iref, Dref, Vref):
 def set_frame(param, cache, I):
     lib.set_frame(byref(param), byref(cache), _fp(I))
 
-def precompute_cache(param, cache, xi):
-    lib.precompute_cache(
+def precompute_warp(param, cache, xi):
+    lib.precompute_warp(
             byref(param), byref(cache), _fp(xi)
             )
 
 # Photometric Residual and its derivative
 lib.photometric_residual.restype = c_int
-def photometric_residual(cache, p):
+def photometric_residual(cache, dof, p):
     u, v = p
     res = c_float()
     w = c_float()
     J = np.zeros(7, dtype=np.float32)
-    lib.photometric_residual(byref(cache), 7, byref(res), byref(w), _fp(J), c_int(u), c_int(v))
+    lib.photometric_residual(byref(cache), dof,
+            byref(res), byref(w), _fp(J), c_int(u), c_int(v))
     return res.value, J, w.value
 
-def photometric_residual_over_frame(param, cache):
+def photometric_loss(param, cache, xi):
     E = c_float()
-    g = np.zeros(9, dtype=np.float32)
-    H = np.zeros((9, 9), dtype=np.float32)
-    lib.photometric_residual_over_frame(byref(param), byref(cache), byref(E), _fp(g), _fp(H))
+    g = np.zeros(7, dtype=np.float32)
+    H = np.zeros((7, 7), dtype=np.float32)
+    lib.photometric_loss(byref(param), byref(cache), 6, _fp(xi), byref(E), _fp(g), _fp(H))
     return E, g, H

@@ -26,6 +26,10 @@ struct cache {
     float Dref[HEIGHT][WIDTH];
     float Vref[HEIGHT][WIDTH];
 
+    /* inverse of pi */
+    float piinv[HEIGHT][WIDTH][3];
+    float piinv_d[HEIGHT][WIDTH][3];
+
     /* current frame */
     float I[HEIGHT][WIDTH];
     float I_u[HEIGHT][WIDTH];

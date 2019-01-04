@@ -452,11 +452,22 @@ huber_r(float delta, float r)
 }
 
 EXPORT void
-precompute_cache(
-        struct param *param,
-        struct cache *cache,
-        float xi[7]
-        )
+precompute_piinv(struct cache *cache)
+{
+    for (int u = 0; u < HEIGHT; u++) {
+        for (int v = 0; v < WIDTH; v++) {
+            if (!cache->mask[u][v])
+                continue;
+
+            float p[2] = {u, v};
+            piinv(cache->piinv[u][v], p, cache->Dref[u][v]);
+            piinv_d(cache->piinv_d[u][v], p, cache->Dref[u][v]);
+        }
+    }
+}
+
+EXPORT void
+precompute_warp(struct param *param, struct cache *cache, float xi[7])
 {
     float *t = xi;
     float *n = xi + 3;
@@ -494,12 +505,11 @@ photometric_residual(
         int dof, float *rp, float *wp, float J[7],
         int u_ref, int v_ref)
 {
-    float p_ref[2] = {u_ref, v_ref};
-    float x[3];
+
+    float *x = cache->piinv[u_ref][v_ref];
+
     float y[3];
     float q[3];
-
-    piinv(x, p_ref, cache->Dref[u_ref][v_ref]);
     affine3d(y, cache->sKRKinv, cache->Kt, x);
     pi(q, y);
 
@@ -511,7 +521,7 @@ photometric_residual(
         return -1;
     }
 
-    //printf("%d, %d, %d, %d\n", u_ref, v_ref, u, v);
+    printf("%d, %d, %d, %d\n", u_ref, v_ref, u, v);
 
     *rp = cache->Iref[u_ref][v_ref] - cache->I[u][v];
 
@@ -564,8 +574,7 @@ photometric_residual(
     mul_NTNT(1, 3, 3, (float*)I_x, (float*)I_y, (float*)cache->sKRKinv);
 
     /* d(pi^-1)/d(Dref) */
-    float piinv_Dref[3];
-    piinv_d(piinv_Dref, p_ref, cache->Dref[u_ref][v_ref]);
+    float *piinv_Dref = cache->piinv_d[u_ref][v_ref];
     float I_Dref = I_x[0]*piinv_Dref[0] + I_x[1]*piinv_Dref[1] + I_x[2]*piinv_Dref[2];
 
     *wp = 1/(2*cache->Ivar + square(I_Dref) * cache->Vref[u_ref][v_ref]);
@@ -574,10 +583,9 @@ photometric_residual(
 
 /* Compute E_p, g = nabla E_p, H = nabla^2 E_p */
 EXPORT void
-photometric_residual_over_frame(
-        struct param *param,
-        struct cache *cache,
-        int dof, float *E, float g[7], float H[7][7]
+photometric_loss(
+        struct param *param, struct cache *cache,
+        int dof, float xi[7], float *E, float g[7], float H[7][7]
         )
 {
     int N = 0;
@@ -586,13 +594,16 @@ photometric_residual_over_frame(
     memset(g, 0, sizeof(float)*7);
     memset(H, 0, sizeof(float)*49);
 
-    float rp;
-    float wp;
-    float J[7];
+    precompute_warp(param, cache, xi);
+
     for (int u = 0; u < HEIGHT; u++) {
-        for (int v = 0; v < WIDTH; v++) {
+        for (int v= 0; v < WIDTH; v++) {
             if (!cache->mask[u][v])
                 continue;
+
+            float rp;
+            float wp;
+            float J[7];
 
             if (photometric_residual(cache, dof, &rp, &wp, J, u, v) < 0)
                 continue;
@@ -620,6 +631,7 @@ photometric_residual_over_frame(
         for (int j = 0; j < dof; j++)
             H[i][j] /= N * param->huber_delta;
     }
+    printf("N=%d\n", N);
 }
 
 EXPORT void
@@ -631,6 +643,8 @@ set_keyframe(struct param *param, struct cache *cache,
     memcpy(cache->Dref, D, sizeof(cache->Dref));
     memcpy(cache->Vref, V, sizeof(cache->Vref));
     create_mask(cache->mask, I, param->mask_thresh);
+
+    precompute_piinv(cache);
 }
 
 EXPORT void
@@ -698,6 +712,7 @@ set_initial_frame(struct tracker *tracker, float I[HEIGHT][WIDTH])
         }
     }
     create_mask(cache->mask, cache->Iref, tracker->param.mask_thresh);
+    precompute_piinv(cache);
 }
 
 void
@@ -733,28 +748,28 @@ tracker_estimate(
 
     for (int i = 0; i < tracker->max_iter; i++) {
         float E = 0;
-        precompute_cache(&tracker->param, &tracker->cache, xi);
+        precompute_warp(&tracker->param, &tracker->cache, xi);
 
-        /* E_p component */
-        photometric_residual_over_frame(
-                &tracker->param, &tracker->cache,
-                6, &E, g, H);
+        while (true) {
+            photometric_loss(
+                    &tracker->param, &tracker->cache,
+                    6, xi, &E, g, H);
 
-        /* Add lambda*I to avoid being singular matrix */
-        for (int i = 0; i < 6; i++)
-            H[i][i] *= lambda;
+            for (int i = 0; i < 6; i++)
+                H[i][i] *= lambda;
 
-        solve(delta_xi, 6, H, g);
+            solve(delta_xi, 6, H, g);
 
-        for (int i = 0; i < 6; i++)
-            xi[i] -= delta_xi[i];
+            for (int i = 0; i < 6; i++)
+                xi[i] -= delta_xi[i];
 
-        if (fabs((E-prevE)/prevE) < tracker->eps) {
-            printf("iteration=%d\n", i+1);
-            break;
+            if (fabs((E-prevE)/prevE) < tracker->eps) {
+                //printf("iteration=%d\n", i+1);
+                break;
+            }
+            prevE = E;
+            //printf("E=%f\n", E);
         }
-        prevE = E;
-        printf("E=%f\n", E);
     }
     printf("E=%f\n", prevE);
 

@@ -274,10 +274,10 @@ def test_photometric_residual():
     cache = L.Cache()
     L.set_keyframe(param, cache, Iref, Dref, Vref)
     L.set_frame(param, cache, I)
-    L.precompute_cache(param, cache, xi)
-    rp2, J2, w2 = L.photometric_residual(cache, p_ref)
+    L.precompute_warp(param, cache, xi)
+    rp2, J2, w2 = L.photometric_residual(cache, 6, p_ref)
 
     assert_allclose(rp1, rp2)
     if not np.isnan(rp1):
-        assert_allclose(J1, J2, rtol=1e-1)
+        assert_allclose(J1[:6], J2[:6], rtol=1e-1)
         assert_allclose(w1, w2)
