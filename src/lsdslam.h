@@ -12,12 +12,6 @@
 #define EXPORT static
 #endif
 
-struct keyframe {
-    float I[HEIGHT][WIDTH];
-    float D[HEIGHT][WIDTH];
-    float V[HEIGHT][WIDTH];
-};
-
 struct cache {
     bool  mask[HEIGHT][WIDTH];
 
