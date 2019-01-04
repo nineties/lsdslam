@@ -748,12 +748,12 @@ tracker_estimate_LMA(
     float lambda = lambda0;
 
     for (int iter = 0; iter < tracker->max_iter; iter++) {
-        float prevE;
+        float prevE=1e5;
         float E;
         float g[7];
         float H[7][7];
 
-        if (photometric_loss(&tracker->param, &tracker->cache, 6, xi, &prevE, g, H)
+        if (photometric_loss(&tracker->param, &tracker->cache, 6, xi, &E, g, H)
                 < tracker->min_pixel_usage)
             return -1;
 
@@ -761,6 +761,7 @@ tracker_estimate_LMA(
             float H_[7][7];
             float xi_[7];
             float dxi[7];
+            float E_;
 
             memcpy(H_, H, sizeof(H_));
             memcpy(xi_, xi, sizeof(xi_));
@@ -773,7 +774,7 @@ tracker_estimate_LMA(
             for (int i = 0; i < 6; i++)
                 xi_[i] -= dxi[i];
 
-            if (photometric_loss(&tracker->param, &tracker->cache, 6, xi_, &E, NULL, NULL)
+            if (photometric_loss(&tracker->param, &tracker->cache, 6, xi_, &E_, NULL, NULL)
                     < tracker->min_pixel_usage)
                 return -1;
 
@@ -783,9 +784,10 @@ tracker_estimate_LMA(
             if (d < square(tracker->step_size_min))
                 return -1;
 
-            if (E < prevE) {
+            if (E_ < prevE) {
                 /* improved. take this result */
                 memcpy(xi, xi_, sizeof(xi));
+                E = E_;
                 break;
             } else if (lambda == lambda0) {
                 /* try smaller lambda */
@@ -799,8 +801,9 @@ tracker_estimate_LMA(
         }
         if (fabs((E-prevE)/prevE) < tracker->eps)
             break;
+        prevE = E;
+        printf("E=%f\n", E);
     }
-
 
     t[0] = xi[0];
     t[1] = xi[1];
