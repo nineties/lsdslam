@@ -348,16 +348,19 @@ EXPORT float
 variance(float x[HEIGHT][WIDTH])
 {
     float mean = 0.0;
-    float sqmean = 0.0;
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
             mean += x[i][j];
-            sqmean += x[i][j]*x[i][j];
         }
     }
-    mean /= (HEIGHT*WIDTH);
-    sqmean /= (HEIGHT*WIDTH);
-    return sqmean - mean*mean;
+    mean /= HEIGHT*WIDTH;
+    float v = 0.0;
+    for (int i = 0; i < HEIGHT; i++) {
+        for (int j = 0; j < WIDTH; j++) {
+            v += square(x[i][j] - mean);
+        }
+    }
+    return v / (HEIGHT*WIDTH);
 }
 
 /* Solve linear system Ax=b of degree n
