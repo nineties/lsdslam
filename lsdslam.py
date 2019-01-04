@@ -26,7 +26,7 @@ class Tracker(object):
     def init(self,
             initial_D=1.0,
             initial_V=1e5,
-            mask_thresh=0.1,
+            mask_thresh=50.0,
             huber_delta=3,
             K=np.eye(3, dtype=np.float32),
             eps=0.001,
