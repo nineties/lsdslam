@@ -698,7 +698,7 @@ tracker_init(
     tracker->LMA_scale = LMA_scale;
     tracker->min_pixel_usage = min_pixel_usage;
     tracker->step_size_min = step_size_min;
-    tracker->optimize_algo = OPTIMIZE_BFGS;
+    tracker->optimize_algo = OPTIMIZE_LMA;
     tracker->param.initial_D = initial_D;
     tracker->param.initial_V = initial_V;
     tracker->param.mask_thresh = mask_thresh;
