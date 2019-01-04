@@ -669,11 +669,13 @@ tracker_init(
         float huber_delta,
         float K[3][3],
         float eps,
-        int max_iter
+        int max_iter,
+        float levmar_factor
         )
 {
     tracker->frame = 0;
     tracker->eps = eps;
+    tracker->levmar_factor = levmar_factor;
     tracker->max_iter = max_iter;
     tracker->param.initial_D = initial_D;
     tracker->param.initial_V = initial_V;
@@ -724,6 +726,10 @@ tracker_estimate(
     float H[7][7];
 
     float prevE = 1e10;
+
+    /* damping factor (Levenberg-Marquardt algorithm) */
+    float lambda = 0.0;
+
     for (int i = 0; i < tracker->max_iter; i++) {
         precompute_cache(
                 &tracker->param, &tracker->cache,
