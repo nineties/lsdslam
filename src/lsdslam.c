@@ -456,8 +456,10 @@ precompute_piinv(struct cache *cache)
 {
     for (int u = 0; u < HEIGHT; u++) {
         for (int v = 0; v < WIDTH; v++) {
+#ifndef BUILD_FOR_TEST
             if (!cache->mask[u][v])
                 continue;
+#endif
 
             float p[2] = {u, v};
             piinv(cache->piinv[u][v], p, cache->Dref[u][v]);

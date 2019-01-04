@@ -230,7 +230,7 @@ def test_photometric_residual():
 
     t = random_vec(3)*0.01
     n = random_vec(3)*0.01
-    rho = 0.1
+    rho = 0.0
     K = (np.eye(3) + np.random.randn(3, 3)*1e-5).astype(np.float32)
     Kinv = np.linalg.inv(K)
 
@@ -275,7 +275,7 @@ def test_photometric_residual():
     L.set_keyframe(param, cache, Iref, Dref, Vref)
     L.set_frame(param, cache, I)
     L.precompute_warp(param, cache, xi)
-    rp2, J2, w2 = L.photometric_residual(cache, 6, p_ref)
+    rp2, J2, w2 = L.photometric_residual(cache, 7, p_ref)
 
     assert_allclose(rp1, rp2)
     if not np.isnan(rp1):
