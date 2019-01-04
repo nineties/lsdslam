@@ -117,36 +117,5 @@ class Param(Structure):
 
         memmove(self.K, _fp(K), K.nbytes)
 
-class Cache(Structure):
-    _fields_ = [
-            ('mask', c_bool * WIDTH * HEIGHT),
-            ('Iref', c_float * WIDTH * HEIGHT),
-            ('Dref', c_float * WIDTH * HEIGHT),
-            ('Vref', c_float * WIDTH * HEIGHT),
-            ('piinv', c_float * WIDTH * HEIGHT * 3),
-            ('piinv_d', c_float * WIDTH * HEIGHT * 3),
-            ('I',   c_float * WIDTH * HEIGHT),
-            ('I_u', c_float * WIDTH * HEIGHT),
-            ('I_v', c_float * WIDTH * HEIGHT),
-            ('Ivar', c_float),
-            ('Kt',  c_float * 3),
-            ('sKRKinv', c_float * 3 * 3),
-            ('sKR_nKinv', c_float * 3 * 3 * 3),
-            ]
-
-def set_keyframe(param, cache, Iref, Dref, Vref):
-    lib.set_keyframe(
-            byref(param), byref(cache),
-            _fp(Iref), _fp(Dref), _fp(Vref)
-            )
-
-def set_frame(param, cache, I):
-    lib.set_frame(byref(param), byref(cache), _fp(I))
-
-def precompute_warp(param, cache, xi):
-    lib.precompute_warp(
-            byref(param), byref(cache), _fp(xi)
-            )
-
 def BFGS_update(dof, H, y, s):
     lib.BFGS_update(dof, _fp(H), _fp(y), _fp(s))
