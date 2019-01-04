@@ -43,18 +43,6 @@ iprod_with_mat3d(float x[3], float A[3][3], float y[3])
 }
 
 EXPORT void
-mulmv3d(float y[3], float A[3][3], float x[3])
-{
-    for (int i = 0; i < 3; i++) {
-        float v = 0.0;
-        for (int k = 0; k < 3; k++) {
-            v += A[i][k] * x[k];
-        }
-        y[i] = v;
-    }
-}
-
-EXPORT void
 mul3x3(float y[3][3], float a[3][3], float b[3][3])
 {
     for (int i = 0; i < 3; i++) {
@@ -111,9 +99,16 @@ inv3x3(float y[3][3], float x[3][3])
 EXPORT void
 affine3d(float y[3], float A[3][3], float b[3], float x[3])
 {
-    mulmv3d(y, A, x);
-    for (int i = 0; i < 3; i++)
-        y[i] += b[i];
+    for (int i = 0; i < 3; i++) {
+        float v = 0;
+        for (int j = 0; j < 3; j++)
+            v += A[i][j]*x[j];
+        y[i] = v;
+    }
+    if (b) {
+        for (int i = 0; i < 3; i++)
+            y[i] += b[i];
+    }
 }
 
 /**** Rotation ****/
@@ -447,7 +442,7 @@ precompute_warp(struct param *param, struct cache *cache, float xi[7])
             sR[i][j] *= s;
 
     mul3x3_twice(cache->sKRKinv, param->K, sR, Kinv);
-    mulmv3d(cache->Kt, param->K, t);
+    affine3d(cache->Kt, param->K, 0, t);
 
     float sR_n[3][3][3];
     compute_R_n(sR_n, n);
