@@ -148,23 +148,5 @@ def precompute_warp(param, cache, xi):
             byref(param), byref(cache), _fp(xi)
             )
 
-# Photometric Residual and its derivative
-lib.photometric_residual.restype = c_int
-def photometric_residual(cache, dof, p):
-    u, v = p
-    res = c_float()
-    w = c_float()
-    J = np.zeros(7, dtype=np.float32)
-    lib.photometric_residual(byref(cache), dof,
-            byref(res), byref(w), _fp(J), c_int(u), c_int(v))
-    return res.value, J, w.value
-
-def photometric_loss(param, cache, xi):
-    E = c_float()
-    g = np.zeros(7, dtype=np.float32)
-    H = np.zeros((7, 7), dtype=np.float32)
-    lib.photometric_loss(byref(param), byref(cache), 6, _fp(xi), byref(E), _fp(g), _fp(H))
-    return E, g, H
-
 def BFGS_update(dof, H, y, s):
     lib.BFGS_update(dof, _fp(H), _fp(y), _fp(s))

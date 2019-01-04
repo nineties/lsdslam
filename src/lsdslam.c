@@ -401,7 +401,7 @@ solve(float x[7], int dof, float A[7][7], float b[7])
     }
 }
 
-EXPORT void
+EXPORT int
 create_mask(bool mask[HEIGHT][WIDTH], float I[HEIGHT][WIDTH], float thresh)
 {
     float I_[HEIGHT][WIDTH];
@@ -411,10 +411,16 @@ create_mask(bool mask[HEIGHT][WIDTH], float I[HEIGHT][WIDTH], float thresh)
     gaussian_filter3x3(I_, I);
     gradu(gu, I_);
     gradv(gv, I_);
+
+    int N = 0;
     for (int i = 0; i < HEIGHT; i++) {
-        for (int j = 0; j < WIDTH; j++)
+        for (int j = 0; j < WIDTH; j++) {
             mask[i][j] = sqrtf(square(gu[i][j]) + square(gv[i][j])) > thresh;
+            if (mask[i][j])
+                N++;
+        }
     }
+    return N;
 }
 
 EXPORT float
@@ -437,23 +443,6 @@ huber_r(float delta, float r)
         return -1;
     else
         return r/delta;
-}
-
-EXPORT void
-precompute_piinv(struct cache *cache)
-{
-    for (int u = 0; u < HEIGHT; u++) {
-        for (int v = 0; v < WIDTH; v++) {
-#ifndef BUILD_FOR_TEST
-            if (!cache->mask[u][v])
-                continue;
-#endif
-
-            float p[2] = {u, v};
-            piinv(cache->piinv[u][v], p, cache->Dref[u][v]);
-            piinv_d(cache->piinv_d[u][v], p, cache->Dref[u][v]);
-        }
-    }
 }
 
 EXPORT void
@@ -493,11 +482,9 @@ EXPORT int
 photometric_residual(
         struct cache *cache,
         int dof, float *rp, float *wp, float J[7],
-        int u_ref, int v_ref)
+        int i)
 {
-
-    float *x = cache->piinv[u_ref][v_ref];
-
+    float *x = cache->piinv[i];
     float y[3];
     float q[3];
     affine3d(y, cache->sKRKinv, cache->Kt, x);
@@ -513,7 +500,7 @@ photometric_residual(
 
     //printf("%d, %d, %d, %d\n", u_ref, v_ref, u, v);
 
-    *rp = cache->Iref[u_ref][v_ref] - cache->I[u][v];
+    *rp = cache->Iref[i] - cache->I[u][v];
 
     /* d(pi_p)/dy */
     float pip_y[2][3];
@@ -564,10 +551,10 @@ photometric_residual(
     mul_NTNT(1, 3, 3, (float*)I_x, (float*)I_y, (float*)cache->sKRKinv);
 
     /* d(pi^-1)/d(Dref) */
-    float *piinv_Dref = cache->piinv_d[u_ref][v_ref];
+    float *piinv_Dref = cache->piinv_Dref[i];
     float I_Dref = I_x[0]*piinv_Dref[0] + I_x[1]*piinv_Dref[1] + I_x[2]*piinv_Dref[2];
 
-    *wp = 1/(2*cache->Ivar + square(I_Dref) * cache->Vref[u_ref][v_ref]);
+    *wp = 1/(2*cache->Ivar + square(I_Dref) * cache->Vref[i]);
     return 0;
 }
 
@@ -586,36 +573,31 @@ photometric_loss(
 
     precompute_warp(param, cache, xi);
 
-    for (int u = 0; u < HEIGHT; u++) {
-        for (int v= 0; v < WIDTH; v++) {
-            if (!cache->mask[u][v])
-                continue;
+    for (int i = 0; i < cache->Nref; i++) {
+        float rp;
+        float wp;
+        float J[7];
 
-            float rp;
-            float wp;
-            float J[7];
+        if (photometric_residual(cache, dof, &rp, &wp, J, i) < 0)
+            continue;
 
-            if (photometric_residual(cache, dof, &rp, &wp, J, u, v) < 0)
-                continue;
+        if (E) *E += wp * huber(param->huber_delta, rp);
 
-            if (E) *E += wp * huber(param->huber_delta, rp);
+        if (g) {
+            for (int i = 0; i < dof; i++)
+                g[i] += wp * huber_r(param->huber_delta, rp) * J[i];
+        }
 
-            if (g) {
-                for (int i = 0; i < dof; i++)
-                    g[i] += wp * huber_r(param->huber_delta, rp) * J[i];
-            }
-
-            if (H) {
-                if (fabs(rp) < param->huber_delta) {
-                    for (int i = 0; i < dof; i++) {
-                        for (int j = 0; j < dof; j++)
-                            H[i][j] += wp*J[i]*J[j];
-                    }
+        if (H) {
+            if (fabs(rp) < param->huber_delta) {
+                for (int i = 0; i < dof; i++) {
+                    for (int j = 0; j < dof; j++)
+                        H[i][j] += wp*J[i]*J[j];
                 }
             }
-
-            N++;
         }
+
+        N++;
     }
 
     if (E) *E /= N;
@@ -634,19 +616,6 @@ photometric_loss(
 }
 
 EXPORT void
-set_keyframe(struct param *param, struct cache *cache,
-        float I[HEIGHT][WIDTH], float D[HEIGHT][WIDTH], float V[HEIGHT][WIDTH]
-        )
-{
-    memcpy(cache->Iref, I, sizeof(cache->Iref));
-    memcpy(cache->Dref, D, sizeof(cache->Dref));
-    memcpy(cache->Vref, V, sizeof(cache->Vref));
-    create_mask(cache->mask, I, param->mask_thresh);
-
-    precompute_piinv(cache);
-}
-
-EXPORT void
 set_frame(struct param *param, struct cache *cache, float I[HEIGHT][WIDTH])
 {
     (void) param;
@@ -654,6 +623,32 @@ set_frame(struct param *param, struct cache *cache, float I[HEIGHT][WIDTH])
     gradu(cache->I_u, I);
     gradv(cache->I_v, I);
     cache->Ivar = variance(I);
+}
+
+static void
+allocate_keyframe(struct cache *cache, int N)
+{
+    cache->Nref = N;
+    cache->Iref       = realloc(cache->Iref, sizeof(float)*N);
+    cache->Dref       = realloc(cache->Dref, sizeof(float)*N);
+    cache->Vref       = realloc(cache->Vref, sizeof(float)*N);
+    cache->piinv      = realloc(cache->piinv, sizeof(float)*3*N);
+    cache->piinv_Dref = realloc(cache->piinv_Dref, sizeof(float)*3*N);
+    if (!(cache->Nref && cache->Dref && cache->Vref &&
+                cache->piinv && cache->piinv_Dref)) {
+        perror("Failed to allocate memory");
+        exit(1);
+    }
+}
+
+static void
+release_keyframe(struct cache *cache)
+{
+    if (cache->Iref) free(cache->Iref);
+    if (cache->Dref) free(cache->Dref);
+    if (cache->Vref) free(cache->Vref);
+    if (cache->piinv) free(cache->piinv);
+    if (cache->piinv_Dref) free(cache->piinv_Dref);
 }
 
 /**** Tracking ****/
@@ -670,9 +665,10 @@ allocate_tracker(void)
 }
 
 void
-release_tracker(struct tracker *obj)
+release_tracker(struct tracker *tracker)
 {
-    free(obj);
+    release_keyframe(&tracker->cache);
+    free(tracker);
 }
 
 void
@@ -710,15 +706,26 @@ static void
 set_initial_frame(struct tracker *tracker, float I[HEIGHT][WIDTH])
 {
     struct cache *cache = &tracker->cache;
-    memcpy(cache->Iref, I, sizeof(cache->Iref));
-    for (int i = 0; i < HEIGHT; i++) {
-        for (int j = 0; j < WIDTH; j++) {
-            cache->Dref[i][j] = tracker->param.initial_D;
-            cache->Vref[i][j] = tracker->param.initial_V;
+
+    bool mask[HEIGHT][WIDTH];
+    int N = create_mask(mask, I, tracker->param.mask_thresh);
+    allocate_keyframe(cache, N);
+
+    int i = 0;
+    for (int u = 0; u < HEIGHT; u++) {
+        for (int v = 0; v < WIDTH; v++) {
+            if (mask[u][v]) {
+                cache->Iref[i] = I[u][v];
+                cache->Dref[i] = tracker->param.initial_D;
+                cache->Vref[i] = tracker->param.initial_V;
+
+                float p[2] = {u, v};
+                piinv(cache->piinv[i], p, cache->Dref[i]);
+                piinv_d(cache->piinv_Dref[i], p, cache->Dref[i]);
+                i++;
+            }
         }
     }
-    create_mask(cache->mask, cache->Iref, tracker->param.mask_thresh);
-    precompute_piinv(cache);
 }
 
 EXPORT int

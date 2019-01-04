@@ -222,68 +222,6 @@ def test_solve():
             L.solve(6, A, b)[:6]
             )
 
-def test_photometric_residual():
-    I = read_image('test/I.png')
-    Iref = read_image('test/Iref.png')
-    Dref = read_image('test/Dref.png') + 1 # +1 for making values positive
-    Vref = np.ones_like(Iref)
-
-    t = random_vec(3)*0.01
-    n = random_vec(3)*0.01
-    rho = 0.0
-    K = (np.eye(3) + np.random.randn(3, 3)*1e-5).astype(np.float32)
-    Kinv = np.linalg.inv(K)
-
-    p_ref = np.random.randint(L.HEIGHT), np.random.randint(L.WIDTH)
-
-    # Compute with sympy
-    x = piinv(p_ref, Dref[p_ref]).flatten()
-    y = K.dot(T(rho, n, t, Kinv.dot(x))).flatten()
-    u, v = pip(y).flatten()
-    u = int(u)
-    v = int(v)
-    if np.isnan(u) or np.isnan(v) or u < 0 or u >= I.shape[0] or v < 0 or v >= I.shape[1]:
-        rp1 = np.nan
-    else:
-        rp1 = Iref[p_ref] - I[u, v]
-
-        # compute derivatie
-        I_u = sobel(I, axis=0, mode='constant')/4
-        I_v = sobel(I, axis=1, mode='constant')/4
-        I_q = np.array([I_u[u, v], I_v[u, v]])
-        I_y = I_q.dot(pip_x(y))
-
-        tau_xi = np.zeros((3, 7), dtype=np.float32)
-
-        s = np.exp(rho)
-
-        tau_xi[:, :3] = np.eye(3)
-        tau_xi[:, 3] = s*K.dot(R_n[0](n)).dot(Kinv).dot(x)
-        tau_xi[:, 4] = s*K.dot(R_n[1](n)).dot(Kinv).dot(x)
-        tau_xi[:, 5] = s*K.dot(R_n[2](n)).dot(Kinv).dot(x)
-        tau_xi[:, 6] = s*K.dot(R(n)).dot(Kinv).dot(x)
-
-        J1 = -I_y.dot(tau_xi)
-
-        # weight
-        I_Dref = I_y.dot(s*K.dot(R(n)).dot(Kinv)).dot(piinv_d(p_ref, Dref[p_ref]))
-        w1 = 1/(2*I.var() + (I_Dref[0])**2 * Vref[p_ref])
-
-
-    # Compute with the lib
-    xi = np.r_[t, n, rho]
-    param = L.Param(1., 1e5, 20., 3, K)
-    cache = L.Cache()
-    L.set_keyframe(param, cache, Iref, Dref, Vref)
-    L.set_frame(param, cache, I)
-    L.precompute_warp(param, cache, xi)
-    rp2, J2, w2 = L.photometric_residual(cache, 7, p_ref)
-
-    assert_allclose(rp1, rp2)
-    if not np.isnan(rp1):
-        assert_allclose(J1[:6], J2[:6], rtol=1e-1)
-        assert_allclose(w1, w2)
-
 def test_BFGS_update():
     H = np.random.randn(7, 7).astype(np.float32)
     H = (H + H.T)/2

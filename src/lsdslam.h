@@ -13,16 +13,13 @@
 #endif
 
 struct cache {
-    bool  mask[HEIGHT][WIDTH];
-
     /* keyframe */
-    float Iref[HEIGHT][WIDTH];
-    float Dref[HEIGHT][WIDTH];
-    float Vref[HEIGHT][WIDTH];
-
-    /* inverse of pi */
-    float piinv[HEIGHT][WIDTH][3];
-    float piinv_d[HEIGHT][WIDTH][3];
+    int Nref;   /* number of points in keyframe */
+    float *Iref;
+    float *Dref;
+    float *Vref;
+    float (*piinv)[3];      /* pi^-1 */
+    float (*piinv_Dref)[3]; /* d(pi^-1)/d(Dref) */
 
     /* current frame */
     float I[HEIGHT][WIDTH];
