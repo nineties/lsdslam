@@ -455,11 +455,13 @@ EXPORT void
 precompute_cache(
         struct param *param,
         struct cache *cache,
-        float rho,
-        float n[3],
-        float t[3]
+        float xi[7]
         )
 {
+    float *t = xi;
+    float *n = xi + 3;
+    float rho = xi[6];
+
     float Kinv[3][3];
     inv3x3(Kinv, param->K);
 
@@ -718,11 +720,7 @@ tracker_estimate(
 
     set_frame(&tracker->param, &tracker->cache, I);
 
-    float xi[7] = {
-        n[0], n[1], n[2], t[0], t[1], t[2], 0.0 /* rho */
-    };
-    float *n_ = xi;
-    float *t_ = xi + 3;
+    float xi[7] = {0};
     float delta_xi[7];
     float g[7];
     float H[7][7];

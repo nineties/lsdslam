@@ -269,11 +269,12 @@ def test_photometric_residual():
 
 
     # Compute with the lib
+    xi = np.r_[t, n, rho]
     param = L.Param(1., 1e5, 20., 3, K)
     cache = L.Cache()
     L.set_keyframe(param, cache, Iref, Dref, Vref)
     L.set_frame(param, cache, I)
-    L.precompute_cache(param, cache, rho, n, t)
+    L.precompute_cache(param, cache, xi)
     rp2, J2, w2 = L.photometric_residual(cache, p_ref)
 
     assert_allclose(rp1, rp2)
