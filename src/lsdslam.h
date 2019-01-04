@@ -43,7 +43,6 @@ struct param {
     float initial_V;
     float mask_thresh;      /* use points which satisfy ||nabla I|| > mask_thresh */
     float huber_delta;      /* huber-norm */
-    float hessian_lambda;   /* for approximation of hessian: H + lambda*I */
     float K[3][3];          /* camera matrix */
 };
 

@@ -28,7 +28,6 @@ class Tracker(object):
             initial_V=1e5,
             mask_thresh=0.1,
             huber_delta=3,
-            hessian_lambda=1e-5,
             K=np.eye(3, dtype=np.float32),
             eps=0.001
             ):
@@ -38,7 +37,6 @@ class Tracker(object):
                 c_float(initial_V),
                 c_float(mask_thresh),
                 c_float(huber_delta),
-                c_float(hessian_lambda),
                 _fp(K),
                 c_float(eps)
                 )
