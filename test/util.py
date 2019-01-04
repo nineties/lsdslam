@@ -1,3 +1,4 @@
+from nose.tools import make_decorator
 import numpy as np
 from PIL import Image
 import lib as L
