@@ -281,3 +281,13 @@ def test_photometric_residual():
     if not np.isnan(rp1):
         assert_allclose(J1[:6], J2[:6], rtol=1e-1)
         assert_allclose(w1, w2)
+
+def test_BFGS_update():
+    H = np.random.randn(7, 7).astype(np.float32)
+    H = (H + H.T)/2
+    s = np.random.randn(7).astype(np.float32)
+    y = np.random.randn(7).astype(np.float32)
+
+    H1 = (np.eye(6)-np.outer(s[:6], y[:6])/y[:6].dot(s[:6])).dot(H[:6,:6]).dot(np.eye(6)-np.outer(y[:6], s[:6])/y[:6].dot(s[:6])) + np.outer(s[:6], s[:6])/y[:6].dot(s[:6])
+    L.BFGS_update(6, H, y, s)
+    assert_allclose(H1, H[:6,:6])

@@ -50,6 +50,11 @@ struct param {
     float K[3][3];          /* camera matrix */
 };
 
+enum optimize_algo {
+    OPTIMIZE_LMA,
+    OPTIMIZE_BFGS,
+};
+
 struct tracker {
     struct param param;
     struct cache cache;
@@ -60,6 +65,7 @@ struct tracker {
     float LMA_scale;    /* scaling factor v for Levenberg-Marquardt algorithm */
     float min_pixel_usage;
     float step_size_min;
+    enum optimize_algo optimize_algo;
 };
 
 struct mapper {

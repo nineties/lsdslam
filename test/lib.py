@@ -165,3 +165,6 @@ def photometric_loss(param, cache, xi):
     H = np.zeros((7, 7), dtype=np.float32)
     lib.photometric_loss(byref(param), byref(cache), 6, _fp(xi), byref(E), _fp(g), _fp(H))
     return E, g, H
+
+def BFGS_update(dof, H, y, s):
+    lib.BFGS_update(dof, _fp(H), _fp(y), _fp(s))

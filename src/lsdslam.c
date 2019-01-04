@@ -698,6 +698,7 @@ tracker_init(
     tracker->LMA_scale = LMA_scale;
     tracker->min_pixel_usage = min_pixel_usage;
     tracker->step_size_min = step_size_min;
+    tracker->optimize_algo = OPTIMIZE_BFGS;
     tracker->param.initial_D = initial_D;
     tracker->param.initial_V = initial_V;
     tracker->param.mask_thresh = mask_thresh;
@@ -720,8 +721,8 @@ set_initial_frame(struct tracker *tracker, float I[HEIGHT][WIDTH])
     precompute_piinv(cache);
 }
 
-int
-tracker_estimate(
+EXPORT int
+tracker_estimate_LMA(
         struct tracker *tracker,
         float I[HEIGHT][WIDTH],
         float n[3], float t[3]
@@ -746,7 +747,7 @@ tracker_estimate(
     float lambda0 = 0.2;
     float lambda = lambda0;
 
-    for (int i = 0; i < tracker->max_iter; i++) {
+    for (int iter = 0; iter < tracker->max_iter; iter++) {
         float prevE;
         float E;
         float g[7];
@@ -796,11 +797,8 @@ tracker_estimate(
                 lambda *= tracker->LMA_scale;
             }
         }
-        printf("E=%f\n", E);
-        if (fabs((E-prevE)/prevE) < tracker->eps) {
-            printf("iteration=%d\n", i+1);
+        if (fabs((E-prevE)/prevE) < tracker->eps)
             break;
-        }
     }
 
 
@@ -811,4 +809,153 @@ tracker_estimate(
     n[1] = xi[4];
     n[2] = xi[5];
     return 0;
+}
+
+EXPORT void
+BFGS_update(int dof, float H[7][7], float y[7], float s[7])
+{
+    float sy = 0;
+    for (int i = 0; i < dof; i++)
+        sy += s[i]*y[i];
+
+    float yHy = 0;
+    for (int i = 0; i < dof; i++) {
+        for (int j = 0; j < dof; j++) {
+            yHy += y[i]*y[j]*H[i][j];
+        }
+    }
+
+    /* implementation with no temporary matrix */
+    /* 1. compute upper triangular matrix */
+    for (int i = 0; i < dof; i++) {
+        for (int j = dof-1; j >= i; j--) {
+            float v = 0;
+            for (int k = 0; k < dof; k++) {
+                float Hik = (k<=j) ? H[i][k] : H[k][i];
+                float Hkj = (k>=i) ? H[k][j] : H[j][k];
+                v += y[k]*(Hik*s[j] + s[i]*Hkj);
+            }
+            H[i][j] += ((sy + yHy)/sy*s[i]*s[j] - v)/sy;
+        }
+    }
+    /* 2. fill lower triangular matrix */
+    for (int i = 0; i < dof; i++) {
+        for (int j = 0; j < i; j++) {
+            H[i][j] = H[j][i];
+        }
+    }
+}
+
+EXPORT int
+tracker_estimate_BFGS(
+        struct tracker *tracker,
+        float I[HEIGHT][WIDTH],
+        float n[3], float t[3]
+        )
+{
+    /* set identity transformation for default */
+    memset(n, 0, sizeof(float)*3);
+    memset(t, 0, sizeof(float)*3);
+
+    if (tracker->frame == 0) {
+        tracker->frame++;
+        set_initial_frame(tracker, I);
+        return 0;
+    }
+    tracker->frame++;
+
+    set_frame(&tracker->param, &tracker->cache, I);
+
+    float xi[7] = {0};
+    float H[7][7] = {0};
+    for (int i = 0; i < 6; i++)
+        H[i][i] = 1;
+
+    for (int iter = 0; iter < tracker->max_iter; iter++) {
+        float prevE = 1e5;
+        float E;
+        float p[7];
+        float g[7];
+        float prev_g[7];
+        float s[7];
+
+        if (photometric_loss(&tracker->param, &tracker->cache, 6, xi, &E, g, NULL)
+                < tracker->min_pixel_usage) {
+            return -1;
+        }
+
+        if (iter > 0) {
+            float y[7];
+            for (int i = 0; i < 6; i++)
+                y[i] = g[i] - prev_g[i];
+
+            BFGS_update(6, H, y, s);
+        }
+
+        for (int j = 0; j < 6; j++) {
+            float v = 0.0;
+            for (int k = 0; k < 6; k++) {
+                v += H[j][k]*g[k];
+            }
+            p[j] = -v;
+        }
+
+        /* find step size alpha */
+        float alpha = 0.1;
+        for (int i = 0; i < 100; i++) {
+            float xi_[7];
+            float E_;
+            memcpy(xi_, xi, sizeof(xi_));
+
+            for (int j = 0; j < 6; j++)
+                xi_[j] += alpha*p[j];
+
+            if (photometric_loss(&tracker->param, &tracker->cache, 6, xi_, &E_, NULL, NULL)
+                    < tracker->min_pixel_usage)
+                continue;
+            if (E_ < E)
+                break;
+            alpha *= 1.1;
+        }
+
+        for (int i = 0; i < 6; i++)
+            s[i] = alpha*p[i];
+
+        for (int i = 0; i < 6; i++)
+            xi[i] += s[i];
+
+        for (int i = 0; i < 6; i++)
+            prev_g[i] = g[i];
+
+        if (1-E/prevE < tracker->eps)
+            break;
+
+        prevE = E;
+    }
+
+    t[0] = xi[0];
+    t[1] = xi[1];
+    t[2] = xi[2];
+    n[0] = xi[3];
+    n[1] = xi[4];
+    n[2] = xi[5];
+    return 0;
+}
+
+int
+tracker_estimate(
+        struct tracker *tracker,
+        float I[HEIGHT][WIDTH],
+        float n[3], float t[3]
+        )
+{
+    switch (tracker->optimize_algo) {
+      case OPTIMIZE_LMA:
+        return tracker_estimate_LMA(tracker, I, n, t);
+      case OPTIMIZE_BFGS:
+        return tracker_estimate_BFGS(tracker, I, n, t);
+      default:
+        fprintf(stderr, "Unknown optimization algorithm");
+        exit(1);
+    }
 }
