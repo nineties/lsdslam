@@ -126,11 +126,11 @@ compute_nx(float y[3][3], float n[3])
 }
 
 EXPORT void
-compute_R(float y[3][3], float n[3])
+compute_sR(float y[3][3], float s, float n[3])
 {
-    y[0][0] = 1; y[0][1] = 0; y[0][2] = 0;
-    y[1][0] = 0; y[1][1] = 1; y[1][2] = 0;
-    y[2][0] = 0; y[2][1] = 0; y[2][2] = 1;
+    y[0][0] = s; y[0][1] = 0; y[0][2] = 0;
+    y[1][0] = 0; y[1][1] = s; y[1][2] = 0;
+    y[2][0] = 0; y[2][1] = 0; y[2][2] = s;
 
     float theta = sqrtf(iprod3d(n, n));
 
@@ -142,8 +142,8 @@ compute_R(float y[3][3], float n[3])
     compute_nx(nx, n);
     mul3x3(nx2, nx, nx);
 
-    float c1 = sinf(theta)/theta;
-    float c2 = (1-cosf(theta))/(theta*theta);
+    float c1 = s * sinf(theta)/theta;
+    float c2 = s * (1-cosf(theta))/(theta*theta);
 
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++)
@@ -153,32 +153,32 @@ compute_R(float y[3][3], float n[3])
 
 // dR/dn
 EXPORT void
-compute_R_n(float y[3][3][3], float n[3])
+compute_sR_n(float y[3][3][3], float s, float n[3])
 {
     float theta = sqrtf(iprod3d(n, n));
     if (fabs(theta) < 1e-12) {
         memset(y, 0, sizeof(float)*3*3*3);
         // dR/dn1
-        y[0][1][2] = -1;
-        y[0][2][1] =  1;
+        y[0][1][2] = -s;
+        y[0][2][1] =  s;
 
         // dR/dn2
-        y[1][0][2] =  1;
-        y[1][2][0] = -1;
+        y[1][0][2] =  s;
+        y[1][2][0] = -s;
 
         // dR/dn2
-        y[2][0][1] = -1;
-        y[2][1][0] =  1;
+        y[2][0][1] = -s;
+        y[2][1][0] =  s;
         return;
     }
 
 
-    float s = sinf(theta);
-    float c = cosf(theta);
-    float c1 = (theta * c - s) / (theta * theta * theta);
-    float c2 = (theta * s + 2 *c - 2) / (theta * theta * theta * theta);
-    float c3 = s / theta;
-    float c4 = (1 - c) / (theta * theta);
+    float sin = sinf(theta);
+    float cos = cosf(theta);
+    float c1 = s * (theta * cos - sin) / (theta * theta * theta);
+    float c2 = s * (theta * sin + 2 *cos - 2) / (theta * theta * theta * theta);
+    float c3 = s * sin / theta;
+    float c4 = s * (1 - cos) / (theta * theta);
 
     float nx[3][3];
     float nx2[3][3];
@@ -436,20 +436,13 @@ precompute_warp(struct param *param, struct cache *cache, float xi[7])
 
     float sR[3][3];
     float s = expf(rho);
-    compute_R(sR, n);
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            sR[i][j] *= s;
+    compute_sR(sR, s, n);
 
     mul3x3_twice(cache->sKRKinv, param->K, sR, Kinv);
     affine3d(cache->Kt, param->K, 0, t);
 
     float sR_n[3][3][3];
-    compute_R_n(sR_n, n);
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            for (int k = 0; k < 3; k++)
-                sR_n[i][j][k] *= s;
+    compute_sR_n(sR_n, s, n);
     mul3x3_twice(cache->sKR_nKinv[0], param->K, sR_n[0], Kinv);
     mul3x3_twice(cache->sKR_nKinv[1], param->K, sR_n[1], Kinv);
     mul3x3_twice(cache->sKR_nKinv[2], param->K, sR_n[2], Kinv);

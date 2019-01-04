@@ -117,25 +117,28 @@ piinv_d = lambdify((p, d), diff(piinv_formula(u, v, d), d))
 
 def test_R():
     n = random_vec(3)
+    s = np.random.randn()
 
     assert_allclose(
-            R(n),
-            L.R(n)
+            s*R(n),
+            L.sR(s, n)
             )
 
-def test_R_n():
+def test_sR_n():
     n = random_norm(3)
-    A = L.R_n(n)
+    s = np.random.randn()
+    A = L.sR_n(s, n)
     for i in range(3):
-        assert_allclose(R_n[i](n), A[i])
+        assert_allclose(s*R_n[i](n), A[i])
 
 def test_rotate_n():
     n = random_norm(3)
     x = random_vec(3)
-    A = L.R_n(n)
+    s = np.random.randn()
+    A = L.sR_n(s, n)
     for i in range(3):
         assert_allclose(
-            rotate_n[i](n, x).flatten(),
+            s*rotate_n[i](n, x).flatten(),
             A[i].dot(x)
             )
 

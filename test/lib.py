@@ -33,14 +33,14 @@ def affine3d(A, b, x):
     lib.affine3d(_fp(y), _fp(A), _fp(b), _fp(x))
     return y
 
-def R(n):
+def sR(s, n):
     y = np.zeros((3, 3), dtype=np.float32)
-    lib.compute_R(_fp(y), _fp(n))
+    lib.compute_sR(_fp(y), c_float(s), _fp(n))
     return y
 
-def R_n(n):
+def sR_n(s, n):
     y = np.zeros((3, 3, 3), dtype=np.float32)
-    lib.compute_R_n(_fp(y), _fp(n))
+    lib.compute_sR_n(_fp(y), c_float(s), _fp(n))
     return y
 
 def identity():
