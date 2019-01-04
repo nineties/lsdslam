@@ -647,6 +647,7 @@ allocate_tracker(void)
         perror("Failed to allocate memory");
         exit(1);
     }
+    memset(obj, 0, sizeof(struct tracker));
     return obj;
 }
 
