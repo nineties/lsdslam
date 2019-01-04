@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 #define WIDTH   240
-#define HEIGHT  180
+#define HEIGHT  160
 
 #ifdef BUILD_FOR_TEST
 #define EXPORT

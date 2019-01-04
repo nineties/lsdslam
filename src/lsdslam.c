@@ -724,7 +724,6 @@ tracker_estimate(
     float H[7][7];
 
     float prevE = 1e10;
-    //while (true) {
     for (int i = 0; i < tracker->max_iter; i++) {
         precompute_cache(
                 &tracker->param, &tracker->cache,
@@ -738,9 +737,9 @@ tracker_estimate(
                 &tracker->param, &tracker->cache,
                 &E, g, H);
 
-        ///* Add lambda*I to avoid being singular matrix */
-        //for (int i = 0; i < 7; i++)
-        //    H[i][i] += tracker->param.hessian_lambda;
+        /* Add lambda*I to avoid being singular matrix */
+        for (int i = 0; i < 7; i++)
+            H[i][i] += 1e-5;
 
         solve(delta_phi, 7, (float*)H, g);
 
@@ -748,12 +747,22 @@ tracker_estimate(
         for (int i = 1; i < 7; i++)
             phi[i] -= delta_phi[i];
 
-        printf("%f\n", E);
+        if (fabs((E-prevE)/prevE) < tracker->eps)
+            break;
+        prevE = E;
     }
+    printf("E=%f\n", prevE);
 
     tracker->frame++;
 
     gettimeofday(&end, NULL);
     timersub(&end, &start, &elapsed);
     printf("%fms\n", elapsed.tv_usec/1.0e3);
+
+    n[0] = phi[1];
+    n[1] = phi[2];
+    n[2] = phi[3];
+    t[0] = phi[4];
+    t[1] = phi[5];
+    t[2] = phi[6];
 }
