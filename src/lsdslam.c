@@ -728,15 +728,12 @@ tracker_estimate(
     float prevE = 1e10;
 
     /* damping factor (Levenberg-Marquardt algorithm) */
-    float lambda = 0.0;
+    float lambda = 1.0;
+    printf("%f\n", tracker->LMA_factor);
 
     for (int i = 0; i < tracker->max_iter; i++) {
-        precompute_cache(
-                &tracker->param, &tracker->cache,
-                tracker->keyframe.I, tracker->keyframe.D, tracker->keyframe.V,
-                I, 0.0, n_, t_);
-
         float E = 0;
+        precompute_cache(&tracker->param, &tracker->cache, xi);
 
         /* E_p component */
         photometric_residual_over_frame(
@@ -745,7 +742,7 @@ tracker_estimate(
 
         /* Add lambda*I to avoid being singular matrix */
         for (int i = 0; i < 6; i++)
-            H[i][i] *= 1.2;
+            H[i][i] *= lambda;
 
         solve(delta_xi, 6, H, g);
 
@@ -757,6 +754,7 @@ tracker_estimate(
             break;
         }
         prevE = E;
+        printf("E=%f\n", E);
     }
     printf("E=%f\n", prevE);
 
