@@ -664,11 +664,13 @@ tracker_init(
         float mask_thresh,
         float huber_delta,
         float K[3][3],
-        float eps
+        float eps,
+        int max_iter
         )
 {
     tracker->frame = 0;
     tracker->eps = eps;
+    tracker->max_iter = max_iter;
     tracker->param.initial_D = initial_D;
     tracker->param.initial_V = initial_V;
     tracker->param.mask_thresh = mask_thresh;
@@ -719,7 +721,7 @@ tracker_estimate(
 
     float prevE = 1e10;
     //while (true) {
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < tracker->max_iter; i++) {
         precompute_cache(
                 &tracker->param, &tracker->cache,
                 tracker->keyframe.I, tracker->keyframe.D, tracker->keyframe.V,

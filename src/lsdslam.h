@@ -50,8 +50,9 @@ struct tracker {
     struct param param;
     struct cache cache;
     struct keyframe keyframe;
-    int frame;  /* number of processed frames */
-    float eps;  /* epsilon for convergence test */
+    int frame;      /* number of processed frames */
+    float eps;      /* epsilon for convergence test */
+    int max_iter;   /* maximum number of iterations */
 };
 
 struct mapper {

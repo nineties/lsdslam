@@ -1,5 +1,5 @@
 import numpy as np
-from ctypes import cdll, c_void_p, c_ubyte, c_float, POINTER, byref
+from ctypes import cdll, c_void_p, c_ubyte, c_int, c_float, POINTER, byref
 
 lib = cdll.LoadLibrary('src/liblsdslam.so')
 
@@ -29,7 +29,8 @@ class Tracker(object):
             mask_thresh=0.1,
             huber_delta=3,
             K=np.eye(3, dtype=np.float32),
-            eps=0.001
+            eps=0.001,
+            max_iter=100
             ):
         lib.tracker_init(
                 c_void_p(self.obj),
@@ -38,8 +39,10 @@ class Tracker(object):
                 c_float(mask_thresh),
                 c_float(huber_delta),
                 _fp(K),
-                c_float(eps)
+                c_float(eps),
+                c_int(max_iter)
                 )
+
     def estimate(self, image):
         n = np.zeros(3, dtype=np.float32)
         t = np.zeros(3, dtype=np.float32)
