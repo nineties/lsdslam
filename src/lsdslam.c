@@ -728,6 +728,9 @@ tracker_estimate_LMA(
         float n[3], float t[3]
         )
 {
+    struct cache *cache = &tracker->cache;
+    struct param *param = &tracker->param;
+
     /* identity transformation */
     memset(n, 0, sizeof(float)*3);
     memset(t, 0, sizeof(float)*3);
@@ -739,7 +742,7 @@ tracker_estimate_LMA(
     }
     tracker->frame++;
 
-    set_frame(&tracker->param, &tracker->cache, I);
+    set_frame(param, cache, I);
 
     float xi[7] = {0};
 
@@ -753,7 +756,7 @@ tracker_estimate_LMA(
         float g[7];
         float H[7][7];
 
-        if (photometric_loss(&tracker->param, &tracker->cache, 6, xi, &E, g, H)
+        if (photometric_loss(param, cache, 6, xi, &E, g, H)
                 < tracker->min_pixel_usage)
             return -1;
 
@@ -774,7 +777,7 @@ tracker_estimate_LMA(
             for (int i = 0; i < 6; i++)
                 xi_[i] -= dxi[i];
 
-            if (photometric_loss(&tracker->param, &tracker->cache, 6, xi_, &E_, NULL, NULL)
+            if (photometric_loss(param, cache, 6, xi_, &E_, NULL, NULL)
                     < tracker->min_pixel_usage)
                 return -1;
 
@@ -856,6 +859,8 @@ tracker_estimate_BFGS(
         float n[3], float t[3]
         )
 {
+    struct cache *cache = &tracker->cache;
+    struct param *param = &tracker->param;
     /* set identity transformation for default */
     memset(n, 0, sizeof(float)*3);
     memset(t, 0, sizeof(float)*3);
@@ -867,7 +872,7 @@ tracker_estimate_BFGS(
     }
     tracker->frame++;
 
-    set_frame(&tracker->param, &tracker->cache, I);
+    set_frame(param, cache, I);
 
     float xi[7] = {0};
     float H[7][7] = {0};
@@ -882,7 +887,7 @@ tracker_estimate_BFGS(
         float prev_g[7];
         float s[7];
 
-        if (photometric_loss(&tracker->param, &tracker->cache, 6, xi, &E, g, NULL)
+        if (photometric_loss(param, cache, 6, xi, &E, g, NULL)
                 < tracker->min_pixel_usage) {
             return -1;
         }
@@ -913,7 +918,7 @@ tracker_estimate_BFGS(
             for (int j = 0; j < 6; j++)
                 xi_[j] += alpha*p[j];
 
-            if (photometric_loss(&tracker->param, &tracker->cache, 6, xi_, &E_, NULL, NULL)
+            if (photometric_loss(param, cache, 6, xi_, &E_, NULL, NULL)
                     < tracker->min_pixel_usage)
                 continue;
             if (E_ < E)
