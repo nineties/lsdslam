@@ -472,10 +472,10 @@ precompute_cache(
     gradv(cache->I_v, I);
     cache->Ivar = variance(I);
 
-    float Kinv[3][3] = {0};
+    float Kinv[3][3];
     inv3x3(Kinv, param->K);
 
-    float sR[3][3] = {0};
+    float sR[3][3];
     float s = expf(rho);
     compute_R(sR, n);
     for (int i = 0; i < 3; i++)
@@ -485,7 +485,7 @@ precompute_cache(
     mul3x3_twice(cache->sKRKinv, param->K, sR, Kinv);
     mulmv3d(cache->Kt, param->K, t);
 
-    float sR_n[3][3][3] = {0};
+    float sR_n[3][3][3];
     compute_R_n(sR_n, n);
     for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
