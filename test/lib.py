@@ -132,15 +132,17 @@ class Cache(Structure):
             ('sKR_nKinv', c_float * 3 * 3 * 3),
             ]
 
-def precompute_cache(
-        param, cache,
-        Iref, Dref, Vref, I,
-        rho, n, t
-        ):
+def set_keyframe(param, cache, Iref, Dref, Vref):
+    lib.set_keyframe(
+            byref(param), byref(cache),
+            _fp(Iref), _fp(Dref), _fp(Vref)
+            )
+
+
+def precompute_cache(param, cache, I, rho, n, t):
     lib.precompute_cache(
             byref(param), byref(cache),
-            _fp(Iref), _fp(Dref), _fp(Vref), _fp(I),
-            c_float(rho), _fp(n), _fp(t)
+            _fp(I), c_float(rho), _fp(n), _fp(t)
             )
 
 # Photometric Residual and its derivative

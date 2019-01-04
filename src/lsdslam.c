@@ -455,21 +455,12 @@ EXPORT void
 precompute_cache(
         struct param *param,
         struct cache *cache,
-        float Iref[HEIGHT][WIDTH],
-        float Dref[HEIGHT][WIDTH],
-        float Vref[HEIGHT][WIDTH],
         float I[HEIGHT][WIDTH],
         float rho,
         float n[3],
         float t[3]
         )
 {
-    create_mask(cache->mask, Iref, param->mask_thresh);
-
-    memcpy(cache->Iref, Iref, sizeof(cache->Iref));
-    memcpy(cache->Dref, Dref, sizeof(cache->Dref));
-    memcpy(cache->Vref, Vref, sizeof(cache->Vref));
-
     memcpy(cache->I, I, sizeof(cache->I));
     gradu(cache->I_u, I);
     gradv(cache->I_v, I);
@@ -636,6 +627,17 @@ photometric_residual_over_frame(
 }
 
 EXPORT void
+set_keyframe(struct param *param, struct cache *cache,
+        float I[HEIGHT][WIDTH], float D[HEIGHT][WIDTH], float V[HEIGHT][WIDTH]
+        )
+{
+    memcpy(cache->Iref, I, sizeof(cache->Iref));
+    memcpy(cache->Dref, D, sizeof(cache->Dref));
+    memcpy(cache->Vref, V, sizeof(cache->Vref));
+    create_mask(cache->mask, I, param->mask_thresh);
+}
+
+EXPORT void
 copy_image(float y[HEIGHT][WIDTH], unsigned char x[HEIGHT][WIDTH])
 {
     for (int i = 0; i < HEIGHT; i++) {
@@ -690,13 +692,15 @@ tracker_init(
 static void
 set_initial_frame(struct tracker *tracker, unsigned char image[HEIGHT][WIDTH])
 {
-    copy_image(tracker->keyframe.I, image);
+    struct cache *cache = &tracker->cache;
+    copy_image(cache->Iref, image);
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
-            tracker->keyframe.D[i][j] = tracker->param.initial_D;
-            tracker->keyframe.V[i][j] = tracker->param.initial_V;
+            cache->Dref[i][j] = tracker->param.initial_D;
+            cache->Vref[i][j] = tracker->param.initial_V;
         }
     }
+    create_mask(cache->mask, cache->Iref, tracker->param.mask_thresh);
 }
 
 void
