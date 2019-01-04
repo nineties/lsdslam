@@ -455,17 +455,11 @@ EXPORT void
 precompute_cache(
         struct param *param,
         struct cache *cache,
-        float I[HEIGHT][WIDTH],
         float rho,
         float n[3],
         float t[3]
         )
 {
-    memcpy(cache->I, I, sizeof(cache->I));
-    gradu(cache->I_u, I);
-    gradv(cache->I_v, I);
-    cache->Ivar = variance(I);
-
     float Kinv[3][3];
     inv3x3(Kinv, param->K);
 
@@ -638,12 +632,13 @@ set_keyframe(struct param *param, struct cache *cache,
 }
 
 EXPORT void
-copy_image(float y[HEIGHT][WIDTH], unsigned char x[HEIGHT][WIDTH])
+set_frame(struct param *param, struct cache *cache, float I[HEIGHT][WIDTH])
 {
-    for (int i = 0; i < HEIGHT; i++) {
-        for (int j = 0; j < WIDTH; j++)
-            y[i][j] = x[i][j];
-    }
+    (void) param;
+    memcpy(cache->I, I, sizeof(cache->I));
+    gradu(cache->I_u, I);
+    gradv(cache->I_v, I);
+    cache->Ivar = variance(I);
 }
 
 /**** Tracking ****/
@@ -690,10 +685,10 @@ tracker_init(
 }
 
 static void
-set_initial_frame(struct tracker *tracker, unsigned char image[HEIGHT][WIDTH])
+set_initial_frame(struct tracker *tracker, float I[HEIGHT][WIDTH])
 {
     struct cache *cache = &tracker->cache;
-    copy_image(cache->Iref, image);
+    memcpy(cache->Iref, I, sizeof(cache->Iref));
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
             cache->Dref[i][j] = tracker->param.initial_D;
@@ -706,7 +701,7 @@ set_initial_frame(struct tracker *tracker, unsigned char image[HEIGHT][WIDTH])
 void
 tracker_estimate(
         struct tracker *tracker,
-        unsigned char image[HEIGHT][WIDTH],
+        float I[HEIGHT][WIDTH],
         float n[3], float t[3]
         )
 {
@@ -716,13 +711,13 @@ tracker_estimate(
     float rho;
     compute_identity(&rho, n, t);
     if (tracker->frame == 0) {
-        set_initial_frame(tracker, image);
+        set_initial_frame(tracker, I);
         tracker->frame++;
         return;
     }
 
-    float I[HEIGHT][WIDTH];
-    copy_image(I, image);
+    set_frame(&tracker->param, &tracker->cache, I);
+
     float xi[7] = {
         n[0], n[1], n[2], t[0], t[1], t[2], 0.0 /* rho */
     };

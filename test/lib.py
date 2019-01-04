@@ -138,11 +138,12 @@ def set_keyframe(param, cache, Iref, Dref, Vref):
             _fp(Iref), _fp(Dref), _fp(Vref)
             )
 
+def set_frame(param, cache, I):
+    lib.set_frame(byref(param), byref(cache), _fp(I))
 
-def precompute_cache(param, cache, I, rho, n, t):
+def precompute_cache(param, cache, rho, n, t):
     lib.precompute_cache(
-            byref(param), byref(cache),
-            _fp(I), c_float(rho), _fp(n), _fp(t)
+            byref(param), byref(cache), c_float(rho), _fp(n), _fp(t)
             )
 
 # Photometric Residual and its derivative
