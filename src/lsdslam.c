@@ -686,7 +686,7 @@ set_initial_frame(struct tracker *tracker, unsigned char image[HEIGHT][WIDTH])
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
             tracker->keyframe.D[i][j] = tracker->param.initial_D;
-            tracker->keyframe.D[i][j] = tracker->param.initial_V;
+            tracker->keyframe.V[i][j] = tracker->param.initial_V;
         }
     }
 }
