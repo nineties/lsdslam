@@ -15,6 +15,7 @@
 struct cache {
     /* keyframe */
     int Nref;   /* number of points in keyframe */
+    int (*pref)[2];
     float *Iref;
     float *Dref;
     float *Vref;

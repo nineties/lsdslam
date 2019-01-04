@@ -579,6 +579,7 @@ static void
 allocate_keyframe(struct cache *cache, int N)
 {
     cache->Nref = N;
+    cache->pref       = realloc(cache->pref, sizeof(int)*2*N);
     cache->Iref       = realloc(cache->Iref, sizeof(float)*N);
     cache->Dref       = realloc(cache->Dref, sizeof(float)*N);
     cache->Vref       = realloc(cache->Vref, sizeof(float)*N);
@@ -594,6 +595,7 @@ allocate_keyframe(struct cache *cache, int N)
 static void
 release_keyframe(struct cache *cache)
 {
+    if (cache->pref) free(cache->pref);
     if (cache->Iref) free(cache->Iref);
     if (cache->Dref) free(cache->Dref);
     if (cache->Vref) free(cache->Vref);
@@ -665,6 +667,8 @@ set_initial_frame(struct tracker *tracker, float I[HEIGHT][WIDTH])
     for (int u = 0; u < HEIGHT; u++) {
         for (int v = 0; v < WIDTH; v++) {
             if (mask[u][v]) {
+                cache->pref[i][0] = u;
+                cache->pref[i][1] = v;
                 cache->Iref[i] = I[u][v];
                 cache->Dref[i] = tracker->param.initial_D;
                 cache->Vref[i] = tracker->param.initial_V;
