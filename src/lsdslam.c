@@ -25,7 +25,7 @@ get_imageheight(void)
 
 /* matrix-matrix multiplication */
 EXPORT void
-mul_NTNT(int l, int m, int n, float *c, float *a, float *b)
+mulmm(int l, int m, int n, float *c, float *a, float *b)
 {
     for (int i = 0; i < l; i++) {
         for (int j = 0; j < n; j++) {
@@ -38,24 +38,23 @@ mul_NTNT(int l, int m, int n, float *c, float *a, float *b)
     }
 }
 
-EXPORT void
-mul_NTT(int l, int m, int n, float *c, float *a, float *b)
-{
-    for (int i = 0; i < l; i++) {
-        for (int j = 0; j < n; j++) {
-            float v = 0.0;
-            for (int k = 0; k < m; k++) {
-                v += a[i*m+k]*b[j*m+k];
-            }
-            c[i*n+j] = v;
-        }
-    }
-}
-
 EXPORT float
 iprod3d(float a[3], float b[3])
 {
     return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+}
+
+EXPORT float
+iprod_with_mat3d(float x[3], float A[3][3], float y[3])
+{
+    float v = 0;
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            v += x[i]*y[j]*A[i][j];
+        }
+    }
+    return v;
+
 }
 
 EXPORT void
@@ -517,30 +516,14 @@ photometric_residual(
     };
 
     /* ==== Compute d(r_p)/d(xi) ==== */
-
-    /* transpose of d(tau)/d(xi) */
-    float tau_xi_T[7][3];
-
-    // d(tau)/d(t)(x) = I
-    tau_xi_T[0][0] = 1;
-    tau_xi_T[0][1] = 0;
-    tau_xi_T[0][2] = 0;
-    tau_xi_T[1][0] = 0;
-    tau_xi_T[1][1] = 1;
-    tau_xi_T[1][2] = 0;
-    tau_xi_T[2][0] = 0;
-    tau_xi_T[2][1] = 0;
-    tau_xi_T[2][2] = 1;
-    mulmv3d(tau_xi_T[3], cache->sKR_nKinv[0], x);  // d(tau)/d(n_1)(x) = sKR_n_1K^-1x
-    mulmv3d(tau_xi_T[4], cache->sKR_nKinv[1], x);  // d(tau)/d(n_2)(x) = sKR_n_2K^-1x
-    mulmv3d(tau_xi_T[5], cache->sKR_nKinv[2], x);  // d(tau)/d(n_3)(x) = sKR_n_3K^-1x
+    J[0] = -I_y[0];
+    J[1] = -I_y[1];
+    J[2] = -I_y[2];
+    J[3] = -iprod_with_mat3d(I_y, cache->sKR_nKinv[0], x);
+    J[4] = -iprod_with_mat3d(I_y, cache->sKR_nKinv[1], x);
+    J[5] = -iprod_with_mat3d(I_y, cache->sKR_nKinv[2], x);
     if (dof == 7)
-        mulmv3d(tau_xi_T[6], cache->sKRKinv, x);       // d(tau)/d(rho)(x) = sKRK^-1x 
-
-    // J = -dI/d(xi)
-    mul_NTT(1, 3, dof, (float*)J, (float*)I_y, (float*)tau_xi_T);
-    for (int i = 0; i < dof; i++)
-        J[i] *= -1;
+        J[6] = -iprod_with_mat3d(I_y, cache->sKRKinv, x);
 
     /* ==== Compute d(r_p)d(D_ref) */
 
@@ -548,7 +531,7 @@ photometric_residual(
      * Note: d(tau)/dx = sKRK^-1
      */
     float I_x[3];
-    mul_NTNT(1, 3, 3, (float*)I_x, (float*)I_y, (float*)cache->sKRKinv);
+    mulmm(1, 3, 3, (float*)I_x, (float*)I_y, (float*)cache->sKRKinv);
 
     /* d(pi^-1)/d(Dref) */
     float *piinv_Dref = cache->piinv_Dref[i];
