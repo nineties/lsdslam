@@ -240,15 +240,17 @@ def test_photometric_residual():
     x = piinv(p_ref, Dref[p_ref]).flatten()
     y = K.dot(T(rho, n, t, Kinv.dot(x))).flatten()
     u, v = pip(y).flatten()
+    u = int(u)
+    v = int(v)
     if np.isnan(u) or np.isnan(v) or u < 0 or u >= I.shape[0] or v < 0 or v >= I.shape[1]:
         rp1 = np.nan
     else:
-        rp1 = Iref[p_ref] - I[int(u), int(v)]
+        rp1 = Iref[p_ref] - I[u, v]
 
         # compute derivatie
         I_u = sobel(I, axis=0, mode='constant')/4
         I_v = sobel(I, axis=1, mode='constant')/4
-        I_q = np.array([I_u[int(u), int(v)], I_v[int(u), int(v)]])
+        I_q = np.array([I_u[u, v], I_v[u, v]])
         I_y = I_q.dot(pip_x(y))
 
         tau_xi = np.zeros((3, 7), dtype=np.float32)
