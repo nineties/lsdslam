@@ -23,21 +23,6 @@ get_imageheight(void)
     return HEIGHT;
 }
 
-/* matrix-matrix multiplication */
-EXPORT void
-mulmm(int l, int m, int n, float *c, float *a, float *b)
-{
-    for (int i = 0; i < l; i++) {
-        for (int j = 0; j < n; j++) {
-            float v = 0.0;
-            for (int k = 0; k < m; k++) {
-                v += a[i*m+k]*b[k*n+j];
-            }
-            c[i*n+j] = v;
-        }
-    }
-}
-
 EXPORT float
 iprod3d(float a[3], float b[3])
 {
@@ -527,16 +512,10 @@ photometric_residual(
 
     /* ==== Compute d(r_p)d(D_ref) */
 
-    /* dI/dx = dI/dy*d(tau)/dx
+    /* dI/dx = dI/dy*d(tau)/dx*d(pi^-1)/d(Dref)
      * Note: d(tau)/dx = sKRK^-1
      */
-    float I_x[3];
-    mulmm(1, 3, 3, (float*)I_x, (float*)I_y, (float*)cache->sKRKinv);
-
-    /* d(pi^-1)/d(Dref) */
-    float *piinv_Dref = cache->piinv_Dref[i];
-    float I_Dref = I_x[0]*piinv_Dref[0] + I_x[1]*piinv_Dref[1] + I_x[2]*piinv_Dref[2];
-
+    float I_Dref = iprod_with_mat3d(I_y, cache->sKRKinv, cache->piinv_Dref[i]);
     *wp = 1/(2*cache->Ivar + square(I_Dref) * cache->Vref[i]);
     return 0;
 }
