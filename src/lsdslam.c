@@ -540,7 +540,7 @@ photometric_residual(
     /* ==== Compute d(r_p)/d(xi) ==== */
 
     /* transpose of d(tau)/d(xi) */
-    float tau_xi_T[7][3] = {0};
+    float tau_xi_T[7][3];
 
     mulmv3d(tau_xi_T[0], cache->sKRKinv, x);       // d(tau)/d(rho)(x) = sKRK^-1x 
     mulmv3d(tau_xi_T[1], cache->sKR_nKinv[0], x);  // d(tau)/d(n_1)(x) = sKR_n_1K^-1x
