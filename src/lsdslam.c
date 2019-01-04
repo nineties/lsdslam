@@ -630,12 +630,11 @@ photometric_residual_over_frame(
 }
 
 EXPORT void
-normalize_image(float y[HEIGHT][WIDTH], unsigned char x[HEIGHT][WIDTH])
+copy_image(float y[HEIGHT][WIDTH], unsigned char x[HEIGHT][WIDTH])
 {
     for (int i = 0; i < HEIGHT; i++) {
-        for (int j = 0; j < WIDTH; j++) {
-            y[i][j] = x[i][j]/255.0;
-        }
+        for (int j = 0; j < WIDTH; j++)
+            y[i][j] = x[i][j];
     }
 }
 
@@ -680,7 +679,7 @@ tracker_init(
 static void
 set_initial_frame(struct tracker *tracker, unsigned char image[HEIGHT][WIDTH])
 {
-    normalize_image(tracker->keyframe.I, image);
+    copy_image(tracker->keyframe.I, image);
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
             tracker->keyframe.D[i][j] = tracker->param.initial_D;
@@ -708,7 +707,7 @@ tracker_estimate(
     }
 
     float I[HEIGHT][WIDTH];
-    normalize_image(I, image);
+    copy_image(I, image);
     float phi[7] = {
         0.0 /* rho */, n[0], n[1], n[2], t[0], t[1], t[2]
     };
