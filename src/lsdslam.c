@@ -664,7 +664,6 @@ tracker_init(
         float initial_V,
         float mask_thresh,
         float huber_delta,
-        float hessian_lambda,
         float K[3][3],
         float eps
         )
@@ -675,7 +674,6 @@ tracker_init(
     tracker->param.initial_V = initial_V;
     tracker->param.mask_thresh = mask_thresh;
     tracker->param.huber_delta = huber_delta;
-    tracker->param.hessian_lambda = hessian_lambda;
     memcpy(tracker->param.K, K, sizeof(tracker->param.K));
 }
 
