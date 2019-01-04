@@ -23,7 +23,7 @@ get_imageheight(void)
     return HEIGHT;
 }
 
-/* matrix-vector multiplication */
+/* matrix-matrix multiplication */
 EXPORT void
 mul_NTNT(int l, int m, int n, float *c, float *a, float *b)
 {
