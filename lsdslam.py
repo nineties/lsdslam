@@ -31,7 +31,7 @@ class Tracker(object):
             K=np.eye(3, dtype=np.float32),
             eps=0.001,
             max_iter=100,
-            levmar_factor=2.,
+            LMA_factor=2.,
             ):
         lib.tracker_init(
                 c_void_p(self.obj),
@@ -42,7 +42,7 @@ class Tracker(object):
                 _fp(K),
                 c_float(eps),
                 c_int(max_iter),
-                c_float(levmar_factor)
+                c_float(LMA_factor)
                 )
 
     def estimate(self, image):

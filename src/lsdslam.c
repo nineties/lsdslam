@@ -673,12 +673,12 @@ tracker_init(
         float K[3][3],
         float eps,
         int max_iter,
-        float levmar_factor
+        float LMA_factor
         )
 {
     tracker->frame = 0;
     tracker->eps = eps;
-    tracker->levmar_factor = levmar_factor;
+    tracker->LMA_factor = LMA_factor;
     tracker->max_iter = max_iter;
     tracker->param.initial_D = initial_D;
     tracker->param.initial_V = initial_V;
