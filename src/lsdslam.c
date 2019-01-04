@@ -716,12 +716,12 @@ tracker_estimate(
 
     float I[HEIGHT][WIDTH];
     copy_image(I, image);
-    float phi[7] = {
+    float xi[7] = {
         0.0 /* rho */, n[0], n[1], n[2], t[0], t[1], t[2]
     };
-    float *n_ = phi + 1;
-    float *t_ = phi + 4;
-    float delta_phi[7];
+    float *n_ = xi + 1;
+    float *t_ = xi + 4;
+    float delta_xi[7];
     float g[7];
     float H[7][7];
 
@@ -746,12 +746,12 @@ tracker_estimate(
         /* Add lambda*I to avoid being singular matrix */
         for (int i = 0; i < 7; i++)
             H[i][i] += 1e-5;
+        solve(delta_xi, 7, (float*)H, g);
 
-        solve(delta_phi, 7, (float*)H, g);
 
         /* start from 1 for not updating rho */
         for (int i = 1; i < 7; i++)
-            phi[i] -= delta_phi[i];
+            xi[i] -= delta_xi[i];
 
         if (fabs((E-prevE)/prevE) < tracker->eps)
             break;
@@ -765,10 +765,10 @@ tracker_estimate(
     timersub(&end, &start, &elapsed);
     printf("%fms\n", elapsed.tv_usec/1.0e3);
 
-    n[0] = phi[1];
-    n[1] = phi[2];
-    n[2] = phi[3];
-    t[0] = phi[4];
-    t[1] = phi[5];
-    t[2] = phi[6];
+    n[0] = xi[1];
+    n[1] = xi[2];
+    n[2] = xi[3];
+    t[0] = xi[4];
+    t[1] = xi[5];
+    t[2] = xi[6];
 }
