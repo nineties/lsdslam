@@ -229,7 +229,7 @@ def test_photometric_residual():
     K = (np.eye(3) + np.random.randn(3, 3)*1e-5).astype(np.float32)
     Kinv = np.linalg.inv(K)
 
-    p_ref = (50, 50)
+    p_ref = np.random.randint(L.HEIGHT), np.random.randint(L.WIDTH)
 
     # Compute with sympy
     x = piinv(p_ref, Dref[p_ref]).flatten()
