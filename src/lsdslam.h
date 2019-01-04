@@ -53,10 +53,13 @@ struct param {
 struct tracker {
     struct param param;
     struct cache cache;
-    int frame;        /* number of processed frames */
-    float eps;        /* epsilon for convergence test */
-    int max_iter;     /* maximum number of iterations */
-    float LMA_factor; /* factor v for Levenberg-Marquardt algorithm */
+    int frame;          /* number of processed frames */
+    float eps;          /* epsilon for convergence test */
+    int max_iter;       /* maximum number of iterations */
+    float LMA_lambda0;  /* initial lambda for Levenberg-Marquardt algorithm */
+    float LMA_scale;    /* scaling factor v for Levenberg-Marquardt algorithm */
+    float min_pixel_usage;
+    float step_size_min;
 };
 
 struct mapper {

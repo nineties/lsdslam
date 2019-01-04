@@ -240,18 +240,6 @@ compute_R_n(float y[3][3][3], float n[3])
     y[2][2][2] = c1*n[2]*nx[2][2] + c2*n[2]*nx2[2][2];
 }
 
-EXPORT void
-compute_identity(float *rho, float n[3], float t[3])
-{
-    *rho = 0.0;
-    n[0] = 0.0;
-    n[1] = 0.0;
-    n[2] = 0.0;
-    t[0] = 0.0;
-    t[1] = 0.0;
-    t[2] = 0.0;
-}
-
 /**** Projection to camera plane ****/
 EXPORT void
 pi(float y[3], float x[3])
@@ -523,7 +511,7 @@ photometric_residual(
         return -1;
     }
 
-    printf("%d, %d, %d, %d\n", u_ref, v_ref, u, v);
+    //printf("%d, %d, %d, %d\n", u_ref, v_ref, u, v);
 
     *rp = cache->Iref[u_ref][v_ref] - cache->I[u][v];
 
@@ -584,7 +572,7 @@ photometric_residual(
 }
 
 /* Compute E_p, g = nabla E_p, H = nabla^2 E_p */
-EXPORT void
+EXPORT float
 photometric_loss(
         struct param *param, struct cache *cache,
         int dof, float xi[7], float *E, float g[7], float H[7][7]
@@ -592,9 +580,9 @@ photometric_loss(
 {
     int N = 0;
 
-    *E = 0;
-    memset(g, 0, sizeof(float)*7);
-    memset(H, 0, sizeof(float)*49);
+    if (E) *E = 0;
+    if (g) memset(g, 0, sizeof(float)*7);
+    if (H) memset(H, 0, sizeof(float)*49);
 
     precompute_warp(param, cache, xi);
 
@@ -610,15 +598,19 @@ photometric_loss(
             if (photometric_residual(cache, dof, &rp, &wp, J, u, v) < 0)
                 continue;
 
-            *E += wp * huber(param->huber_delta, rp);
+            if (E) *E += wp * huber(param->huber_delta, rp);
 
-            for (int i = 0; i < dof; i++)
-                g[i] += wp * huber_r(param->huber_delta, rp) * J[i];
+            if (g) {
+                for (int i = 0; i < dof; i++)
+                    g[i] += wp * huber_r(param->huber_delta, rp) * J[i];
+            }
 
-            if (fabs(rp) < param->huber_delta) {
-                for (int i = 0; i < dof; i++) {
-                    for (int j = 0; j < dof; j++)
-                        H[i][j] += wp*J[i]*J[j];
+            if (H) {
+                if (fabs(rp) < param->huber_delta) {
+                    for (int i = 0; i < dof; i++) {
+                        for (int j = 0; j < dof; j++)
+                            H[i][j] += wp*J[i]*J[j];
+                    }
                 }
             }
 
@@ -626,14 +618,19 @@ photometric_loss(
         }
     }
 
-    *E /= N;
-    for (int i = 0; i < dof; i++)
-        g[i] /= N;
-    for (int i = 0; i < dof; i++) {
-        for (int j = 0; j < dof; j++)
-            H[i][j] /= N * param->huber_delta;
+    if (E) *E /= N;
+    if (g) {
+        for (int i = 0; i < dof; i++)
+            g[i] /= N;
     }
-    printf("N=%d\n", N);
+    if (H) {
+        for (int i = 0; i < dof; i++) {
+            for (int j = 0; j < dof; j++)
+                H[i][j] /= N * param->huber_delta;
+        }
+    }
+
+    return (float) N / (HEIGHT*WIDTH);  /* usage of pixels */
 }
 
 EXPORT void
@@ -688,13 +685,19 @@ tracker_init(
         float K[3][3],
         float eps,
         int max_iter,
-        float LMA_factor
+        float LMA_lambda0,
+        float LMA_scale,
+        float min_pixel_usage,
+        float step_size_min
         )
 {
     tracker->frame = 0;
     tracker->eps = eps;
-    tracker->LMA_factor = LMA_factor;
     tracker->max_iter = max_iter;
+    tracker->LMA_lambda0 = LMA_lambda0;
+    tracker->LMA_scale = LMA_scale;
+    tracker->min_pixel_usage = min_pixel_usage;
+    tracker->step_size_min = step_size_min;
     tracker->param.initial_D = initial_D;
     tracker->param.initial_V = initial_V;
     tracker->param.mask_thresh = mask_thresh;
@@ -717,69 +720,89 @@ set_initial_frame(struct tracker *tracker, float I[HEIGHT][WIDTH])
     precompute_piinv(cache);
 }
 
-void
+int
 tracker_estimate(
         struct tracker *tracker,
         float I[HEIGHT][WIDTH],
         float n[3], float t[3]
         )
 {
-    struct timeval start, end, elapsed;
-    gettimeofday(&start, NULL);
+    /* identity transformation */
+    memset(n, 0, sizeof(float)*3);
+    memset(t, 0, sizeof(float)*3);
 
-    float rho;
-    compute_identity(&rho, n, t);
     if (tracker->frame == 0) {
-        set_initial_frame(tracker, I);
         tracker->frame++;
-        return;
+        set_initial_frame(tracker, I);
+        return 0;
     }
+    tracker->frame++;
 
     set_frame(&tracker->param, &tracker->cache, I);
 
     float xi[7] = {0};
-    float delta_xi[7];
-    float g[7];
-    float H[7][7];
-
-    float prevE = 1e10;
 
     /* damping factor (Levenberg-Marquardt algorithm) */
-    float lambda = 1.0;
-    printf("%f\n", tracker->LMA_factor);
+    float lambda0 = 0.2;
+    float lambda = lambda0;
 
     for (int i = 0; i < tracker->max_iter; i++) {
-        float E = 0;
-        precompute_warp(&tracker->param, &tracker->cache, xi);
+        float prevE;
+        float E;
+        float g[7];
+        float H[7][7];
+
+        if (photometric_loss(&tracker->param, &tracker->cache, 6, xi, &prevE, g, H)
+                < tracker->min_pixel_usage)
+            return -1;
 
         while (true) {
-            photometric_loss(
-                    &tracker->param, &tracker->cache,
-                    6, xi, &E, g, H);
+            float H_[7][7];
+            float xi_[7];
+            float dxi[7];
+
+            memcpy(H_, H, sizeof(H_));
+            memcpy(xi_, xi, sizeof(xi_));
 
             for (int i = 0; i < 6; i++)
-                H[i][i] *= lambda;
+                H_[i][i] *= (1 + lambda);
 
-            solve(delta_xi, 6, H, g);
+            solve(dxi, 6, H_, g);
 
             for (int i = 0; i < 6; i++)
-                xi[i] -= delta_xi[i];
+                xi_[i] -= dxi[i];
 
-            if (fabs((E-prevE)/prevE) < tracker->eps) {
-                //printf("iteration=%d\n", i+1);
+            if (photometric_loss(&tracker->param, &tracker->cache, 6, xi_, &E, NULL, NULL)
+                    < tracker->min_pixel_usage)
+                return -1;
+
+            float d = 0.0;
+            for (int i = 0; i < 6; i++)
+                d += dxi[i]*dxi[i];
+            if (d < square(tracker->step_size_min))
+                return -1;
+
+            if (E < prevE) {
+                /* improved. take this result */
+                memcpy(xi, xi_, sizeof(xi));
                 break;
+            } else if (lambda == lambda0) {
+                /* try smaller lambda */
+                lambda /= tracker->LMA_scale;
+            } else {
+                /* try bigger lambda */
+                if (lambda < lambda0)
+                    lambda = lambda0;
+                lambda *= tracker->LMA_scale;
             }
-            prevE = E;
-            //printf("E=%f\n", E);
+        }
+        printf("E=%f\n", E);
+        if (fabs((E-prevE)/prevE) < tracker->eps) {
+            printf("iteration=%d\n", i+1);
+            break;
         }
     }
-    printf("E=%f\n", prevE);
 
-    tracker->frame++;
-
-    gettimeofday(&end, NULL);
-    timersub(&end, &start, &elapsed);
-    printf("%fms\n", elapsed.tv_usec/1.0e3);
 
     t[0] = xi[0];
     t[1] = xi[1];
@@ -787,4 +810,5 @@ tracker_estimate(
     n[0] = xi[3];
     n[1] = xi[4];
     n[2] = xi[5];
+    return 0;
 }
