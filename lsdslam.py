@@ -202,11 +202,6 @@ class Tracker(object):
             huber_delta=3,
             K=np.eye(3, dtype=np.float32),
             eps=0.001,
-            max_iter=100,
-            LMA_lambda0=0.2,
-            LMA_scale=1.5,
-            min_pixel_usage=0.04,
-            step_size_min=1e-3
             ):
         self.frame = 0
 
