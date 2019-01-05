@@ -109,8 +109,8 @@ class Solver(object):
         self.Iref = None
         self.Dref = None
         self.Vref = None
-        self.piinv = None
-        self.piinv_D = None
+        self.xref = None
+        self.xref_D = None
 
         # current frame
         self.I = None
@@ -134,8 +134,8 @@ class Solver(object):
         self.Dref = D
         self.Vref = V
 
-        self.piinv = array([p[0]/D, p[1]/D, 1/D])               # pi^-1(p, D)
-        self.piinv_D = array([-p[0]/D**2, -p[1]/D**2, -1/D**2]) # d(pi^-1)/d(D)(p,D)
+        self.xref = array([p[0]/D, p[1]/D, 1/D])               # pi^-1(p, D)
+        self.xref_D = array([-p[0]/D**2, -p[1]/D**2, -1/D**2]) # d(pi^-1)/d(D)(p,D)
 
     def set_frame(self, frame):
         self.I, self.I_u, self.I_v, self.Ivar = compute_I(frame)
@@ -155,7 +155,7 @@ class Solver(object):
         sKR_n2Kinv = s*self.K.dot(R_n[2]).dot(self.Kinv)
 
         # translate points in reference frame to current frame
-        y = sKRKinv.dot(self.piinv) + Kt
+        y = sKRKinv.dot(self.xref) + Kt
 
         # project to camera plane
         q = y[:2]/y[2]
@@ -173,7 +173,7 @@ class Solver(object):
         I_v_y2 = self.I_v[p[0],p[1]]/y[2]
 
         I_y = np.vstack([-I_u_y2, -I_v_y2, -I_u_y2*q[0] - I_v_y2*q[1]])
-        tau_D = sKRKinv.dot(self.piinv_D)
+        tau_D = sKRKinv.dot(self.xref_D)
 
         I_D = multi_inner(I_y, tau_D)
         #I_D = (I_y * tau_D).sum(0)
@@ -185,13 +185,13 @@ class Solver(object):
 
         rows = [
             -I_y,
-            -(I_y*sKR_n0Kinv.dot(self.piinv)).sum(0).reshape(1, -1),
-            -(I_y*sKR_n1Kinv.dot(self.piinv)).sum(0).reshape(1, -1),
-            -(I_y*sKR_n2Kinv.dot(self.piinv)).sum(0).reshape(1, -1),
+            -(I_y*sKR_n0Kinv.dot(self.xref)).sum(0).reshape(1, -1),
+            -(I_y*sKR_n1Kinv.dot(self.xref)).sum(0).reshape(1, -1),
+            -(I_y*sKR_n2Kinv.dot(self.xref)).sum(0).reshape(1, -1),
             ]
         if space == 'Sim3':
             rows.append(
-                    -(I_y*sKRKinv.dot(self.piinv)).sum(0).reshape(1, -1)
+                    -(I_y*sKRKinv.dot(self.xref)).sum(0).reshape(1, -1)
                     )
 
         N = len(mask) - mask.sum()
