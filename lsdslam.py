@@ -6,11 +6,6 @@ import scipy.signal
 from scipy.ndimage import gaussian_filter, sobel
 from scipy.optimize import least_squares, minimize
 
-def zeros(shape): return np.zeros(shape, dtype=np.float32)
-def ones(shape):  return np.ones(shape, dtype=np.float32)
-def array(args):  return np.array(args, dtype=np.float32)
-def eye(n):       return np.eye(n, dtype=np.float32)
-
 # In the following codes we use following notations:
 #
 # - F_x:    (partial) differential coefficient d(F)/d(x).
@@ -23,25 +18,36 @@ def eye(n):       return np.eye(n, dtype=np.float32)
 #   - I: gray-scale camera image
 #   - D: inverse depth image
 #   - V: variance image
+# - Points
+#   - p: camera plane (u,v)
+#   - x: world coordinate
 # - Translation from reference frame to new frame
 #   - n: rotation axis vector
 #   - theta: rotation angle (theta = ||n||)
 #   - R: rotation matrix
 #   - t: translation vector
 #   - rho: scaling factor (s=exp(rho))
-#
+#   - xi: combined vector [t,n] or [t,n,rho]
 
-def compute_I(frame):
-    "compute smoothed image, its gradient and variance"
-    I = gaussian_filter(frame.astype(np.float32), 3, mode='constant')
-    I_u = sobel(I, 0, mode='constant')/4
-    I_v = sobel(I, 1, mode='constant')/4
-    return I, I_u, I_v, I.var()
+def zeros(shape): return np.zeros(shape, dtype=np.float32)
+def ones(shape):  return np.ones(shape, dtype=np.float32)
+def array(args):  return np.array(args, dtype=np.float32)
+def eye(n):       return np.eye(n, dtype=np.float32)
+
+def multi_inner(A, B):
+    """compute inner product of multiple vectors.
+
+    let A=(a1,a2,...,an), B=(b1,b2,...,bn) then
+    multi_inner(A, B) = (a1.b1, a2.b2, ..., an.bn)
+    """
+    return np.einsum('ij,ij->j', A, B)
 
 def compute_R(n):
+    "compute rotation matrix and its gradient"
     theta = np.linalg.norm(n)
     R_n = zeros((3,3,3))
     if np.abs(theta) < 1e-30:
+        # Avoid division by zero
         R_n[0,1,2] = R_n[1,2,0] = R_n[2,0,1] = -1
         R_n[0,2,1] = R_n[1,0,2] = R_n[2,1,0] = 1
         return eye(3), R_n
@@ -54,7 +60,6 @@ def compute_R(n):
     c4 = (1 - cos) / theta**2
 
     N = array([[0, -n[2], n[1]], [n[2], 0, -n[0]], [-n[1], n[0], 0]])
-
     R = eye(3) + c3 * N + c4 * N**2
 
     R_n[0] = c1*n[0]*N + c2*n[0]*N**2
@@ -90,12 +95,20 @@ def compute_R(n):
 
     return R, R_n
 
-Keyframe = namedtuple('Keyframe', 'p I D V')
+def compute_I(frame):
+    "compute smoothed image, its gradient and variance"
+    I = gaussian_filter(frame.astype(np.float32), 3, mode='constant')
+    I_u = sobel(I, 0, mode='constant')/4
+    I_v = sobel(I, 1, mode='constant')/4
+    return I, I_u, I_v, I.var()
 
 class Solver(object):
     def __init__(self):
         # keyframe
-        self.ref = None
+        self.pref = None
+        self.Iref = None
+        self.Dref = None
+        self.Vref = None
         self.piinv = None
         self.piinv_D = None
 
@@ -115,13 +128,14 @@ class Solver(object):
         self.K = K
         self.Kinv = np.linalg.inv(K)
 
-    def set_keyframe(self, keyframe):
-        self.ref = keyframe
+    def set_keyframe(self, p, I, D, V):
+        self.pref = p
+        self.Iref = I
+        self.Dref = D
+        self.Vref = V
 
-        x = keyframe.p
-        d = keyframe.D
-        self.piinv = array([x[0]/d, x[1]/d, 1/d])               # pi^-1(p, D)
-        self.piinv_D = array([-x[0]/d**2, -x[1]/d**2, -1/d**2]) # d(pi^-1)/d(D)(p,D)
+        self.piinv = array([p[0]/D, p[1]/D, 1/D])               # pi^-1(p, D)
+        self.piinv_D = array([-p[0]/D**2, -p[1]/D**2, -1/D**2]) # d(pi^-1)/d(D)(p,D)
 
     def set_frame(self, frame):
         self.I, self.I_u, self.I_v, self.Ivar = compute_I(frame)
@@ -152,7 +166,7 @@ class Solver(object):
         p[:, mask] = 0
 
         # residual
-        r = self.ref.I - self.I[p[0],p[1]]
+        r = self.Iref - self.I[p[0],p[1]]
 
         # weight 
         I_u_y2 = self.I_u[p[0],p[1]]/y[2]
@@ -161,15 +175,14 @@ class Solver(object):
         I_y = np.vstack([-I_u_y2, -I_v_y2, -I_u_y2*q[0] - I_v_y2*q[1]])
         tau_D = sKRKinv.dot(self.piinv_D)
 
-        I_D = (I_y * tau_D).sum(0)
+        I_D = multi_inner(I_y, tau_D)
+        #I_D = (I_y * tau_D).sum(0)
 
         N = len(mask) - mask.sum()
 
-        rp = ((2*self.Ivar + I_D**2 * self.ref.V)**-0.5 * r)/N
+        rp = ((2*self.Ivar + I_D**2 * self.Vref)**-0.5 * r)/N
         rp[mask] = 0
 
-
-        # 3xn
         rows = [
             -I_y,
             -(I_y*sKR_n0Kinv.dot(self.piinv)).sum(0).reshape(1, -1),
@@ -224,13 +237,12 @@ class Tracker(object):
         I, gu, gv, _ = compute_I(frame)
         points = np.where(np.sqrt(gu**2 + gv**2) > self.mask_thresh)
         n = len(points[0])
-        ref = Keyframe(
+        self.solver.set_keyframe(
                 p=array(points),
                 I=I[points],
                 D=ones(n) * self.D0,
                 V=ones(n) * self.V0
                 )
-        self.solver.set_keyframe(ref)
 
     def estimate(self, I):
         self.frame += 1
