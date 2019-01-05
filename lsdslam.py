@@ -138,13 +138,13 @@ class Solver(object):
     def set_frame(self, frame):
         self.I, self.I_u, self.I_v, self.Ivar = compute_I(frame)
 
-    def photometric_residual(self, xi, space):
+    def photometric_residual(self, xi, group):
         # Memo result for jacobian
         if self.weighted_rp_memo and self.weighted_rp_memo[0] is xi:
             return self.weighted_rp_memo[1:]
 
         # Compute warp
-        s = 1 if space == 'SE3' else np.exp(xi[6])
+        s = 1 if group == 'SE3' else np.exp(xi[6])
         R, R_n = compute_R(xi[3:6])
         sKRKinv = s*self.K.dot(R).dot(self.Kinv)
         Kt = self.K.dot(xi[:3]).reshape(3, 1)
@@ -187,7 +187,7 @@ class Solver(object):
             -(I_y*sKR_n1Kinv.dot(self.xref)).sum(0).reshape(1, -1),
             -(I_y*sKR_n2Kinv.dot(self.xref)).sum(0).reshape(1, -1),
             ]
-        if space == 'Sim3':
+        if group == 'Sim3':
             rows.append(
                     -(I_y*sKRKinv.dot(self.xref)).sum(0).reshape(1, -1)
                     )
@@ -199,11 +199,11 @@ class Solver(object):
 
         return rp, J
 
-    def weighted_rp(self, xi, space):
-        return self.photometric_residual(xi, space)[0]
+    def weighted_rp(self, xi, group):
+        return self.photometric_residual(xi, group)[0]
 
-    def weighted_rp_jac(self, xi, space):
-        return self.photometric_residual(xi, space)[1]
+    def weighted_rp_jac(self, xi, group):
+        return self.photometric_residual(xi, group)[1]
 
 class Tracker(object):
     def __enter__(self):
