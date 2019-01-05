@@ -32,11 +32,11 @@ def eye(n):       return np.eye(n, dtype=np.float32)
 #
 
 def compute_I(frame):
-    # compute smoothed image and its gradient
+    "compute smoothed image, its gradient and variance"
     I = gaussian_filter(frame.astype(np.float32), 3, mode='constant')
     I_u = sobel(I, 0, mode='constant')/4
     I_v = sobel(I, 1, mode='constant')/4
-    return I, I_u, I_v
+    return I, I_u, I_v, I.var()
 
 def compute_R(n):
     theta = np.linalg.norm(n)
@@ -124,8 +124,7 @@ class Solver(object):
         self.piinv_D = array([-x[0]/d**2, -x[1]/d**2, -1/d**2]) # d(pi^-1)/d(D)(p,D)
 
     def set_frame(self, frame):
-        self.I, self.I_u, self.I_v = compute_I(frame)
-        self.Ivar = self.I.var()
+        self.I, self.I_u, self.I_v, self.Ivar = compute_I(frame)
 
     def photometric_residual(self, xi, space):
         # Memo result for jacobian
@@ -222,7 +221,7 @@ class Tracker(object):
         self.solver.set_K(K)
 
     def set_initial_frame(self, frame):
-        I, gu, gv = compute_I(frame)
+        I, gu, gv, _ = compute_I(frame)
         points = np.where(np.sqrt(gu**2 + gv**2) > self.mask_thresh)
         n = len(points[0])
         ref = Keyframe(
