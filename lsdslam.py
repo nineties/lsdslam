@@ -6,23 +6,16 @@ import scipy.signal
 from scipy.ndimage import gaussian_filter, sobel
 from scipy.optimize import least_squares, minimize
 
-def zeros(shape):
-    return np.zeros(shape, dtype=np.float32)
+def zeros(shape): return np.zeros(shape, dtype=np.float32)
+def ones(shape):  return np.ones(shape, dtype=np.float32)
+def array(args):  return np.array(args, dtype=np.float32)
+def eye(n):       return np.eye(n, dtype=np.float32)
 
-def ones(shape):
-    return np.ones(shape, dtype=np.float32)
-
-def eye(n):
-    return np.eye(n, dtype=np.float32)
-
-def array(args):
-    return np.array(args, dtype=np.float32)
-
-def preprocess_frame(I):
+def load_frame(frame):
     I = gaussian_filter(I, 3, mode='constant')
-    Iu = sobel(I, 0, mode='constant')/4 # dI/du
-    Iv = sobel(I, 1, mode='constant')/4 # dI/dv
-    return I, Iu, Iv
+    I_u = sobel(I, 0, mode='constant')/4 # dI/du
+    I_v = sobel(I, 1, mode='constant')/4 # dI/dv
+    return I, I_u, I_v
 
 # Rotation matrix
 def compute_R(n):
@@ -94,8 +87,8 @@ class Solver(object):
 
         # current frame
         self.I = None
-        self.Iu = None
-        self.Iv = None
+        self.I_u = None
+        self.I_v = None
         self.Ivar = None
 
         # camera matrix
@@ -117,7 +110,7 @@ class Solver(object):
         self.piinv_D = array([-x[0]/d**2, -x[1]/d**2, -1/d**2]) # d(pi^-1)/d(D)(p,D)
 
     def set_frame(self, I):
-        self.I, self.Iu, self.Iv = preprocess_frame(I)
+        self.I, self.I_u, self.I_v = load_frame(I)
         self.Ivar = self.I.var()
 
     def photometric_residual(self, xi, space):
@@ -149,10 +142,10 @@ class Solver(object):
         r = self.ref.I - self.I[p[0],p[1]]
 
         # weight 
-        Iu_y2 = self.Iu[p[0],p[1]]/y[2]
-        Iv_y2 = self.Iv[p[0],p[1]]/y[2]
+        I_u_y2 = self.I_u[p[0],p[1]]/y[2]
+        I_v_y2 = self.I_v[p[0],p[1]]/y[2]
 
-        I_y = np.vstack([-Iu_y2, -Iv_y2, -Iu_y2*q[0] - Iv_y2*q[1]])
+        I_y = np.vstack([-I_u_y2, -I_v_y2, -I_u_y2*q[0] - I_v_y2*q[1]])
         tau_D = sKRKinv.dot(self.piinv_D)
 
         I_D = (I_y * tau_D).sum(0)
@@ -215,7 +208,7 @@ class Tracker(object):
         self.solver.set_K(K)
 
     def set_initial_frame(self, I):
-        I, gu, gv = preprocess_frame(I)
+        I, gu, gv = load_frame(I)
         points = np.where(np.sqrt(gu**2 + gv**2) > self.mask_thresh)
         n = len(points[0])
         ref = Keyframe(
