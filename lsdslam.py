@@ -107,7 +107,6 @@ class Solver(object):
         # keyframe
         self.pref = None
         self.Iref = None
-        self.Dref = None
         self.Vref = None
         self.xref = None
         self.xref_D = None
@@ -128,14 +127,13 @@ class Solver(object):
         self.K = K
         self.Kinv = np.linalg.inv(K)
 
-    def set_keyframe(self, p, I, D, V):
-        self.pref = p
-        self.Iref = I
-        self.Dref = D
-        self.Vref = V
+    def set_keyframe(self, pref, Iref, Dref, Vref):
+        self.Iref = Iref
+        self.Vref = Vref
+        d = Dref.reshape(1,-1)
 
-        self.xref = array([p[0]/D, p[1]/D, 1/D])               # pi^-1(p, D)
-        self.xref_D = array([-p[0]/D**2, -p[1]/D**2, -1/D**2]) # d(pi^-1)/d(D)(p,D)
+        self.xref = np.r_[pref/d, 1/d]           # pi^-1(pref, Dref)
+        self.xref_D = np.r_[-pref/d**2, -1/d**2] # d(pi^-1)/d(Dref)(pref,Dref)
 
     def set_frame(self, frame):
         self.I, self.I_u, self.I_v, self.Ivar = compute_I(frame)
@@ -238,10 +236,10 @@ class Tracker(object):
         points = np.where(np.sqrt(gu**2 + gv**2) > self.mask_thresh)
         n = len(points[0])
         self.solver.set_keyframe(
-                p=array(points),
-                I=I[points],
-                D=ones(n) * self.D0,
-                V=ones(n) * self.V0
+                pref=array(points),
+                Iref=I[points],
+                Dref=ones(n) * self.D0,
+                Vref=ones(n) * self.V0
                 )
 
     def estimate(self, I):
