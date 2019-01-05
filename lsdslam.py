@@ -25,31 +25,26 @@ def eye(n):       return np.eye(n, dtype=np.float32)
 #   - V: variance image
 # - Translation from reference frame to new frame
 #   - n: rotation axis vector
-#   - theta: rotation angle
+#   - theta: rotation angle (theta = ||n||)
+#   - R: rotation matrix
 #   - t: translation vector
 #   - rho: scaling factor (s=exp(rho))
 #
 
-def load_frame(frame):
-    I = gaussian_filter(I, 3, mode='constant')
-    I_u = sobel(I, 0, mode='constant')/4 # dI/du
-    I_v = sobel(I, 1, mode='constant')/4 # dI/dv
+def compute_I(frame):
+    # compute smoothed image and its gradient
+    I = gaussian_filter(frame.astype(np.float32), 3, mode='constant')
+    I_u = sobel(I, 0, mode='constant')/4
+    I_v = sobel(I, 1, mode='constant')/4
     return I, I_u, I_v
 
-# Rotation matrix
 def compute_R(n):
     theta = np.linalg.norm(n)
-    R_n0 = zeros((3,3))
-    R_n1 = zeros((3,3))
-    R_n2 = zeros((3,3))
+    R_n = zeros((3,3,3))
     if np.abs(theta) < 1e-30:
-        R_n0[1,2] = -1
-        R_n0[2,1] = 1
-        R_n1[0,2] = 1
-        R_n1[2,0] = -1
-        R_n2[0,1] = -1
-        R_n2[1,0] = 1
-        return eye(3), R_n0, R_n1, R_n2
+        R_n[0,1,2] = R_n[1,2,0] = R_n[2,0,1] = -1
+        R_n[0,2,1] = R_n[1,0,2] = R_n[2,1,0] = 1
+        return eye(3), R_n
 
     sin = np.sin(theta)
     cos = np.cos(theta)
@@ -59,41 +54,41 @@ def compute_R(n):
     c4 = (1 - cos) / theta**2
 
     N = array([[0, -n[2], n[1]], [n[2], 0, -n[0]], [-n[1], n[0], 0]])
-    N2 = N**2
 
     R = eye(3) + c3 * N + c4 * N**2
 
-    R_n0[0,0] = c1*n[0]*N[0,0] + c2*n[0]*N2[0,0]
-    R_n0[0,1] = c1*n[0]*N[0,1] + c2*n[0]*N2[0,1] + c4*n[1]
-    R_n0[0,2] = c1*n[0]*N[0,2] + c2*n[0]*N2[0,2] + c4*n[2]
-    R_n0[1,0] = c1*n[0]*N[1,0] + c2*n[0]*N2[1,0] + c4*n[1]
-    R_n0[1,1] = c1*n[0]*N[1,1] + c2*n[0]*N2[1,1] - 2*c4*n[0]
-    R_n0[1,2] = c1*n[0]*N[1,2] + c2*n[0]*N2[1,2] - c3
-    R_n0[2,0] = c1*n[0]*N[2,0] + c2*n[0]*N2[2,0] + c4*n[2]
-    R_n0[2,1] = c1*n[0]*N[2,1] + c2*n[0]*N2[2,1] + c3
-    R_n0[2,2] = c1*n[0]*N[2,2] + c2*n[0]*N2[2,2] - 2*c4*n[0]
+    R_n[0] = c1*n[0]*N + c2*n[0]*N**2
+    R_n[1] = c1*n[1]*N + c2*n[1]*N**2
+    R_n[2] = c1*n[2]*N + c2*n[2]*N**2
 
-    R_n1[0,0] = c1*n[1]*N[0,0] + c2*n[1]*N2[0,0] - 2*c4*n[1]
-    R_n1[0,1] = c1*n[1]*N[0,1] + c2*n[1]*N2[0,1] + c4*n[0]
-    R_n1[0,2] = c1*n[1]*N[0,2] + c2*n[1]*N2[0,2] + c3
-    R_n1[1,0] = c1*n[1]*N[1,0] + c2*n[1]*N2[1,0] + c4*n[0]
-    R_n1[1,1] = c1*n[1]*N[1,1] + c2*n[1]*N2[1,1]
-    R_n1[1,2] = c1*n[1]*N[1,2] + c2*n[1]*N2[1,2] + c4*n[2]
-    R_n1[2,0] = c1*n[1]*N[2,0] + c2*n[1]*N2[2,0] - c3
-    R_n1[2,1] = c1*n[1]*N[2,1] + c2*n[1]*N2[2,1] + c4*n[2]
-    R_n1[2,2] = c1*n[1]*N[2,2] + c2*n[1]*N2[2,2] - 2*c4*n[1]
+    R_n[0,0,1] += c4*n[1]
+    R_n[0,0,2] += c4*n[2]
+    R_n[0,1,0] += c4*n[1]
+    R_n[0,1,1] -= 2*c4*n[0]
+    R_n[0,1,2] -= c3
+    R_n[0,2,0] += c4*n[2]
+    R_n[0,2,1] += c3
+    R_n[0,2,2] -= 2*c4*n[0]
 
-    R_n2[0,0] = c1*n[2]*N[0,0] + c2*n[2]*N2[0,0] - 2*c4*n[2]
-    R_n2[0,1] = c1*n[2]*N[0,1] + c2*n[2]*N2[0,1] - c3
-    R_n2[0,2] = c1*n[2]*N[0,2] + c2*n[2]*N2[0,2] + c4*n[0]
-    R_n2[1,0] = c1*n[2]*N[1,0] + c2*n[2]*N2[1,0] + c3
-    R_n2[1,1] = c1*n[2]*N[1,1] + c2*n[2]*N2[1,1] - 2*c4*n[2]
-    R_n2[1,2] = c1*n[2]*N[1,2] + c2*n[2]*N2[1,2] + c4*n[1]
-    R_n2[2,0] = c1*n[2]*N[2,0] + c2*n[2]*N2[2,0] + c4*n[0]
-    R_n2[2,1] = c1*n[2]*N[2,1] + c2*n[2]*N2[2,1] + c4*n[1]
-    R_n2[2,2] = c1*n[2]*N[2,2] + c2*n[2]*N2[2,2]
+    R_n[1,0,0] -= 2*c4*n[1]
+    R_n[1,0,1] += c4*n[0]
+    R_n[1,0,2] += c3
+    R_n[1,1,0] += c4*n[0]
+    R_n[1,1,2] += c4*n[2]
+    R_n[1,2,0] -= c3
+    R_n[1,2,1] += c4*n[2]
+    R_n[1,2,2] -= 2*c4*n[1]
 
-    return R, R_n0, R_n1, R_n2
+    R_n[2,0,0] -= 2*c4*n[2]
+    R_n[2,0,1] -= c3
+    R_n[2,0,2] += c4*n[0]
+    R_n[2,1,0] += c3
+    R_n[2,1,1] -= 2*c4*n[2]
+    R_n[2,1,2] += c4*n[1]
+    R_n[2,2,0] += c4*n[0]
+    R_n[2,2,1] += c4*n[1]
+
+    return R, R_n
 
 Keyframe = namedtuple('Keyframe', 'p I D V')
 
@@ -129,7 +124,7 @@ class Solver(object):
         self.piinv_D = array([-x[0]/d**2, -x[1]/d**2, -1/d**2]) # d(pi^-1)/d(D)(p,D)
 
     def set_frame(self, I):
-        self.I, self.I_u, self.I_v = load_frame(I)
+        self.I, self.I_u, self.I_v = compute_I(I)
         self.Ivar = self.I.var()
 
     def photometric_residual(self, xi, space):
@@ -139,12 +134,12 @@ class Solver(object):
 
         # Compute warp
         s = 1 if space == 'SE3' else np.exp(xi[6])
-        R, R_n0, R_n1, R_n2 = compute_R(xi[3:6])
+        R, R_n = compute_R(xi[3:6])
         sKRKinv = s*self.K.dot(R).dot(self.Kinv)
         Kt = self.K.dot(xi[:3]).reshape(3, 1)
-        sKR_n0Kinv = s*self.K.dot(R_n0).dot(self.Kinv)
-        sKR_n1Kinv = s*self.K.dot(R_n1).dot(self.Kinv)
-        sKR_n2Kinv = s*self.K.dot(R_n2).dot(self.Kinv)
+        sKR_n0Kinv = s*self.K.dot(R_n[0]).dot(self.Kinv)
+        sKR_n1Kinv = s*self.K.dot(R_n[1]).dot(self.Kinv)
+        sKR_n2Kinv = s*self.K.dot(R_n[2]).dot(self.Kinv)
 
         # translate points in reference frame to current frame
         y = sKRKinv.dot(self.piinv) + Kt
@@ -227,7 +222,7 @@ class Tracker(object):
         self.solver.set_K(K)
 
     def set_initial_frame(self, I):
-        I, gu, gv = load_frame(I)
+        I, gu, gv = compute_I(I)
         points = np.where(np.sqrt(gu**2 + gv**2) > self.mask_thresh)
         n = len(points[0])
         ref = Keyframe(
