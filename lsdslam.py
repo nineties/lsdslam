@@ -85,7 +85,7 @@ def compute_R(n):
 
 Keyframe = namedtuple('Keyframe', 'p I D V')
 
-class Cache(object):
+class Solver(object):
     def __init__(self):
         # keyframe
         self.ref = None
@@ -211,8 +211,8 @@ class Tracker(object):
         self.V0 = V0
 
         self.eps = eps
-        self.cache = Cache()
-        self.cache.set_K(K)
+        self.solver = Solver()
+        self.solver.set_K(K)
 
     def set_initial_frame(self, I):
         I, gu, gv = preprocess_frame(I)
@@ -224,19 +224,19 @@ class Tracker(object):
                 D=ones(n) * self.D0,
                 V=ones(n) * self.V0
                 )
-        self.cache.set_keyframe(ref)
+        self.solver.set_keyframe(ref)
 
     def estimate(self, I):
         self.frame += 1
         if self.frame == 1:
             self.set_initial_frame(I)
             return zeros(3), zeros(3)
-        self.cache.set_frame(I)
+        self.solver.set_frame(I)
 
         start = time.time()
         result = least_squares(
-                fun=self.cache.weighted_rp,
-                jac=self.cache.weighted_rp_jac,
+                fun=self.solver.weighted_rp,
+                jac=self.solver.weighted_rp_jac,
                 x0=zeros(6),
                 loss='huber',
                 f_scale=self.huber_delta,
