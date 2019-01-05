@@ -123,8 +123,8 @@ class Solver(object):
         self.piinv = array([x[0]/d, x[1]/d, 1/d])               # pi^-1(p, D)
         self.piinv_D = array([-x[0]/d**2, -x[1]/d**2, -1/d**2]) # d(pi^-1)/d(D)(p,D)
 
-    def set_frame(self, I):
-        self.I, self.I_u, self.I_v = compute_I(I)
+    def set_frame(self, frame):
+        self.I, self.I_u, self.I_v = compute_I(frame)
         self.Ivar = self.I.var()
 
     def photometric_residual(self, xi, space):
@@ -221,8 +221,8 @@ class Tracker(object):
         self.solver = Solver()
         self.solver.set_K(K)
 
-    def set_initial_frame(self, I):
-        I, gu, gv = compute_I(I)
+    def set_initial_frame(self, frame):
+        I, gu, gv = compute_I(frame)
         points = np.where(np.sqrt(gu**2 + gv**2) > self.mask_thresh)
         n = len(points[0])
         ref = Keyframe(
