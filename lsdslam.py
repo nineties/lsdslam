@@ -11,6 +11,25 @@ def ones(shape):  return np.ones(shape, dtype=np.float32)
 def array(args):  return np.array(args, dtype=np.float32)
 def eye(n):       return np.eye(n, dtype=np.float32)
 
+# In the following codes we use following notations:
+#
+# - F_x:    (partial) differential coefficient d(F)/d(x).
+# - F:      F in new frame
+# - Fref:   F in reference frame
+#
+# and use following symbols:
+#
+# - Frame
+#   - I: gray-scale camera image
+#   - D: inverse depth image
+#   - V: variance image
+# - Translation from reference frame to new frame
+#   - n: rotation axis vector
+#   - theta: rotation angle
+#   - t: translation vector
+#   - rho: scaling factor (s=exp(rho))
+#
+
 def load_frame(frame):
     I = gaussian_filter(I, 3, mode='constant')
     I_u = sobel(I, 0, mode='constant')/4 # dI/du
