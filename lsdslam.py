@@ -108,6 +108,12 @@ class Solver(object):
         self.xref = None
         self.xref_D = None
 
+        # current frame
+        self.I = None
+        self.I_u = None
+        self.I_v = None
+        self.Ivar = None
+
         # camera matrix
         self.K = None
         self.Kinv = None
@@ -126,12 +132,13 @@ class Solver(object):
         self.xref = np.r_[pref/d, 1/d]           # pi^-1(pref, Dref)
         self.xref_D = np.r_[-pref/d**2, -1/d**2] # d(pi^-1)/d(Dref)(pref,Dref)
 
-    def compute_residual(self, xi, frame):
+    def set_frame(self, frame):
+        self.I, self.I_u, self.I_v, self.Ivar = compute_I(frame)
+
+    def compute_residual(self, xi):
         # Memo result for jacobian
         if self.weighted_rp_memo and self.weighted_rp_memo[0] is xi:
             return self.weighted_rp_memo[1:]
-
-        I, I_u, I_v, Ivar = compute_I(frame)
 
         # degree of freedom
         dof = len(xi)
@@ -155,17 +162,17 @@ class Solver(object):
         idx = p[0].astype(int), p[1].astype(int)
 
         # mask out points outside frame
-        H, W = I.shape
+        H, W = self.I.shape
         mask = (idx[0]<0)|(idx[0]>=H)|(idx[1]<0)|(idx[1]>=W)
         idx[0][mask] = 0
         idx[1][mask] = 0
 
         # photometric residual
-        rp = self.Iref - I[idx]
+        rp = self.Iref - self.I[idx]
 
         # weight 
-        I_u_x2 = -I_u[idx]/x[2]
-        I_v_x2 = -I_v[idx]/x[2]
+        I_u_x2 = -self.I_u[idx]/x[2]
+        I_v_x2 = -self.I_v[idx]/x[2]
 
         I_x = np.vstack([I_u_x2, I_v_x2, I_u_x2*p[0] + I_v_x2*p[1]])
         tau_D = sKRKinv.dot(self.xref_D)
@@ -173,7 +180,7 @@ class Solver(object):
 
         N = len(mask) - mask.sum()
 
-        rp = (((2*Ivar + I_D**2 * self.Vref)**-0.5)/N) * rp
+        rp = (((2*self.Ivar + I_D**2 * self.Vref)**-0.5)/N) * rp
         rp[mask] = 0
 
         rows = [
@@ -191,13 +198,13 @@ class Solver(object):
 
         return rp, J
 
-    def residual(self, xi, frame):
-        return self.compute_residual(xi, frame)[0]
+    def residual(self, xi):
+        return self.compute_residual(xi)[0]
 
-    def residual_jac(self, xi, frame):
-        return self.compute_residual(xi, frame)[1]
+    def residual_jac(self, xi):
+        return self.compute_residual(xi)[1]
 
-    def estimate_pose(self, frame, dof):
+    def estimate_pose(self, dof):
         start = time.time()
         result = least_squares(
                 fun=self.residual,
@@ -257,9 +264,10 @@ class Tracker(object):
                 Vref=ones(n) * self.V0
                 )
 
-    def estimate(self, frame):
+    def estimate(self, I):
         self.frame += 1
         if self.frame == 1:
-            self.set_initial_frame(frame)
+            self.set_initial_frame(I)
             return zeros(3), zeros(3)
-        return self.solver.estimate_pose(frame, dof=6)
+        self.solver.set_frame(I)
+        return self.solver.estimate_pose(dof=6)
