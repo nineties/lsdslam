@@ -100,7 +100,14 @@ def compute_I(frame):
     return I, I_u, I_v, I.var()
 
 class Solver(object):
-    def __init__(self):
+    def __init__(
+            self,
+            huber_delta,
+            eps
+            ):
+        self.huber_delta = huber_delta
+        self.eps = eps
+
         # image size
         self.width  = None
         self.height = None
@@ -159,18 +166,19 @@ class Solver(object):
         # project to camera plane
         p = x[:2]/x[2]
 
-        indices = p.astype(int)
+        idx = p[0].astype(int), p[1].astype(int)
 
         H, W = self.I.shape
-        mask = ~((indices[0] >= 0)&(indices[0] < H)&(indices[1] >= 0)&(indices[1] < W))
-        indices[:, mask] = 0
+        mask = ~((idx[0] >= 0)&(idx[0] < H)&(idx[1] >= 0)&(idx[1] < W))
+        idx[0][mask] = 0
+        idx[1][mask] = 0
 
         # residual
-        r = self.Iref - self.I[indices[0],indices[1]]
+        r = self.Iref - self.I[idx]
 
         # weight 
-        I_u_x2 = self.I_u[indices[0],indices[1]]/x[2]
-        I_v_x2 = self.I_v[indices[0],indices[1]]/x[2]
+        I_u_x2 = self.I_u[idx]/x[2]
+        I_v_x2 = self.I_v[idx]/x[2]
 
         I_x = np.vstack([-I_u_x2, -I_v_x2, -I_u_x2*p[0] - I_v_x2*p[1]])
         tau_D = sKRKinv.dot(self.xref_D)
@@ -204,6 +212,26 @@ class Solver(object):
     def weighted_rp_jac(self, xi):
         return self.photometric_residual(xi)[1]
 
+    def estimate_pose(self, dof):
+        start = time.time()
+        result = least_squares(
+                fun=self.weighted_rp,
+                jac=self.weighted_rp_jac,
+                x0=zeros(dof),
+                loss='huber',
+                f_scale=self.huber_delta,
+                xtol=self.eps,
+                ftol=self.eps,
+                gtol=self.eps
+                )
+        elapsed = time.time() - start
+        t = result.x[:3]
+        n = result.x[3:6]
+        if dof==6:
+            return t, n
+        else:
+            return t, n, result.x[6]
+
 class Tracker(object):
     def __enter__(self):
         return self
@@ -227,7 +255,10 @@ class Tracker(object):
         self.V0 = V0
 
         self.eps = eps
-        self.solver = Solver()
+        self.solver = Solver(
+                huber_delta=huber_delta,
+                eps=eps
+                )
         self.solver.set_K(K)
 
     def set_initial_frame(self, frame):
@@ -247,22 +278,4 @@ class Tracker(object):
             self.set_initial_frame(I)
             return zeros(3), zeros(3)
         self.solver.set_frame(I)
-
-        start = time.time()
-        result = least_squares(
-                fun=self.solver.weighted_rp,
-                jac=self.solver.weighted_rp_jac,
-                x0=zeros(6),
-                loss='huber',
-                f_scale=self.huber_delta,
-                xtol=self.eps,
-                ftol=self.eps,
-                gtol=self.eps
-                )
-        elapsed = time.time() - start
-        print(result.x)
-        print('{}ms'.format(elapsed*1000))
-        t = result.x[:3]
-        n = result.x[3:6]
-        return t, n
-
+        return self.solver.estimate_pose(dof=6)
