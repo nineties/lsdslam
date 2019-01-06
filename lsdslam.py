@@ -147,36 +147,24 @@ class Solver(object):
     def set_frame(self, frame):
         self.I, self.I_u, self.I_v, self.Ivar = compute_I(frame)
 
-    def compute_tau(self, xi):
-        """compute tau and d(tau)/d(xi)
-
-        Both can be represented as affine transformation on xref.
-        """
-
-        include_rho = (len(xi) == 7)
-        s = np.exp(xi[6]) if include_rho else 1
-        R, R_n = compute_R(xi[3:6])
-
-        tau = s*self.K.dot(R).dot(self.Kinv), self.K.dot(xi[:3]).reshape(3,1)
-
-        return tau
-
-    def photometric_residual(self, xi, group):
+    def photometric_residual(self, xi):
         # Memo result for jacobian
         if self.weighted_rp_memo and self.weighted_rp_memo[0] is xi:
             return self.weighted_rp_memo[1:]
 
+        use_rho = (len(xi) != 6)
+
         # Compute translation from xref to x
-        tau = self.compute_tau(xi)
-        s = 1 if group == 'SE3' else np.exp(xi[6])
+        s = np.exp(xi[6]) if use_rho else 1
         R, R_n     = compute_R(xi[3:6])
         sKRKinv    = s*self.K.dot(R).dot(self.Kinv)
         sKR_n0Kinv = s*self.K.dot(R_n[0]).dot(self.Kinv)
         sKR_n1Kinv = s*self.K.dot(R_n[1]).dot(self.Kinv)
         sKR_n2Kinv = s*self.K.dot(R_n[2]).dot(self.Kinv)
+        Kt         = self.K.dot(xi[:3]).reshape(3,1)
 
         # translate points in reference frame to current frame
-        x = affine(tau, self.xref)
+        x = sKRKinv.dot(self.xref) + Kt
 
         # project to camera plane
         q = x[:2]/x[2]
@@ -210,7 +198,7 @@ class Solver(object):
             -(I_x*sKR_n1Kinv.dot(self.xref)).sum(0).reshape(1, -1),
             -(I_x*sKR_n2Kinv.dot(self.xref)).sum(0).reshape(1, -1),
             ]
-        if group == 'Sim3':
+        if use_rho:
             rows.append(
                     -(I_x*sKRKinv.dot(self.xref)).sum(0).reshape(1, -1)
                     )
@@ -222,11 +210,11 @@ class Solver(object):
 
         return rp, J
 
-    def weighted_rp(self, xi, group):
-        return self.photometric_residual(xi, group)[0]
+    def weighted_rp(self, xi):
+        return self.photometric_residual(xi)[0]
 
-    def weighted_rp_jac(self, xi, group):
-        return self.photometric_residual(xi, group)[1]
+    def weighted_rp_jac(self, xi):
+        return self.photometric_residual(xi)[1]
 
 class Tracker(object):
     def __enter__(self):
@@ -281,11 +269,10 @@ class Tracker(object):
                 f_scale=self.huber_delta,
                 xtol=self.eps,
                 ftol=self.eps,
-                gtol=self.eps,
-                args=('SE3',)
+                gtol=self.eps
                 )
         elapsed = time.time() - start
-        print(result)
+        print(result.x)
         print('{}ms'.format(elapsed*1000))
         t = result.x[:3]
         n = result.x[3:6]
