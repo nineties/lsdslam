@@ -39,14 +39,6 @@ def eye(n):       return np.eye(n, dtype=np.float32)
 def affine(coef, x):
     return coef[0].dot(x) + coef[1]
 
-def multi_inner(A, B):
-    """compute inner product of multiple vectors.
-
-    let A=(a1,a2,...,an), B=(b1,b2,...,bn) then
-    multi_inner(A, B) = (a1.b1, a2.b2, ..., an.bn)
-    """
-    return np.einsum('ij,ij->j', A, B)
-
 def compute_R(n):
     "compute rotation matrix and its gradient"
     theta = np.linalg.norm(n)
@@ -156,34 +148,34 @@ class Solver(object):
 
         # Compute translation from xref to x
         s = np.exp(xi[6]) if use_rho else 1
-        R, R_n     = compute_R(xi[3:6])
-        sKRKinv    = s*self.K.dot(R).dot(self.Kinv)
+        R, R_n    = compute_R(xi[3:6])
+        sKRKinv   = s*self.K.dot(R).dot(self.Kinv)
         sKR_nKinv = s*np.einsum('ik,nkl,lj->nij', self.K, R_n, self.Kinv)
-        Kt         = self.K.dot(xi[:3]).reshape(3,1)
+        Kt        = self.K.dot(xi[:3]).reshape(3,1)
 
         # translate points in reference frame to current frame
         x = sKRKinv.dot(self.xref) + Kt
 
         # project to camera plane
-        q = x[:2]/x[2]
+        p = x[:2]/x[2]
 
-        p = q.astype(int)
+        indices = p.astype(int)
 
         H, W = self.I.shape
-        mask = ~((p[0] >= 0)&(p[0] < H)&(p[1] >= 0)&(p[1] < W))
-        p[:, mask] = 0
+        mask = ~((indices[0] >= 0)&(indices[0] < H)&(indices[1] >= 0)&(indices[1] < W))
+        indices[:, mask] = 0
 
         # residual
-        r = self.Iref - self.I[p[0],p[1]]
+        r = self.Iref - self.I[indices[0],indices[1]]
 
         # weight 
-        I_u_x2 = self.I_u[p[0],p[1]]/x[2]
-        I_v_x2 = self.I_v[p[0],p[1]]/x[2]
+        I_u_x2 = self.I_u[indices[0],indices[1]]/x[2]
+        I_v_x2 = self.I_v[indices[0],indices[1]]/x[2]
 
-        I_x = np.vstack([-I_u_x2, -I_v_x2, -I_u_x2*q[0] - I_v_x2*q[1]])
+        I_x = np.vstack([-I_u_x2, -I_v_x2, -I_u_x2*p[0] - I_v_x2*p[1]])
         tau_D = sKRKinv.dot(self.xref_D)
 
-        I_D = multi_inner(I_x, tau_D)
+        I_D = np.einsum('ij,ij->j', I_x, tau_D)
 
         N = len(mask) - mask.sum()
 
