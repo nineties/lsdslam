@@ -146,7 +146,7 @@ class Solver(object):
     def set_frame(self, frame):
         self.I, self.I_u, self.I_v, self.Ivar = compute_I(frame)
 
-    def photometric_residual(self, xi):
+    def compute_residual(self, xi):
         # Memo result for jacobian
         if self.weighted_rp_memo and self.weighted_rp_memo[0] is xi:
             return self.weighted_rp_memo[1:]
@@ -206,17 +206,17 @@ class Solver(object):
 
         return rp, J
 
-    def weighted_rp(self, xi):
-        return self.photometric_residual(xi)[0]
+    def residual(self, xi):
+        return self.compute_residual(xi)[0]
 
-    def weighted_rp_jac(self, xi):
-        return self.photometric_residual(xi)[1]
+    def residual_jac(self, xi):
+        return self.compute_residual(xi)[1]
 
     def estimate_pose(self, dof):
         start = time.time()
         result = least_squares(
-                fun=self.weighted_rp,
-                jac=self.weighted_rp_jac,
+                fun=self.residual,
+                jac=self.residual_jac,
                 x0=zeros(dof),
                 loss='huber',
                 f_scale=self.huber_delta,
