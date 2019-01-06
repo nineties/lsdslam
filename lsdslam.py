@@ -59,37 +59,26 @@ def compute_sR(s, n):
     N = array([[0, -n[2], n[1]], [n[2], 0, -n[0]], [-n[1], n[0], 0]])
     sR = s * eye(3) + c3 * N + c4 * N**2
 
-    sR_n[0] = c1*n[0]*N + c2*n[0]*N**2
-    sR_n[1] = c1*n[1]*N + c2*n[1]*N**2
-    sR_n[2] = c1*n[2]*N + c2*n[2]*N**2
+    A = c1*N
+    B = c2*N**2
+    c40 = c4*n[0]
+    c41 = c4*n[1]
+    c42 = c4*n[2]
+    C = np.array([[
+        [   0,    c41,    c42],
+        [ c41, -2*c40,    -c3],
+        [ c42,     c3, -2*c40]
+        ],[
+        [-2*c41,  c40,     c3],
+        [   c40,    0,    c42],
+        [   -c3,  c42, -2*c41]
+        ],[
+        [-2*c42,    -c3,  c40],
+        [    c3, -2*c42,  c41],
+        [   c40,    c41,    0]
+        ]])
 
-    sR_n[0,0,1] += c4*n[1]
-    sR_n[0,0,2] += c4*n[2]
-    sR_n[0,1,0] += c4*n[1]
-    sR_n[0,1,1] -= 2*c4*n[0]
-    sR_n[0,1,2] -= c3
-    sR_n[0,2,0] += c4*n[2]
-    sR_n[0,2,1] += c3
-    sR_n[0,2,2] -= 2*c4*n[0]
-
-    sR_n[1,0,0] -= 2*c4*n[1]
-    sR_n[1,0,1] += c4*n[0]
-    sR_n[1,0,2] += c3
-    sR_n[1,1,0] += c4*n[0]
-    sR_n[1,1,2] += c4*n[2]
-    sR_n[1,2,0] -= c3
-    sR_n[1,2,1] += c4*n[2]
-    sR_n[1,2,2] -= 2*c4*n[1]
-
-    sR_n[2,0,0] -= 2*c4*n[2]
-    sR_n[2,0,1] -= c3
-    sR_n[2,0,2] += c4*n[0]
-    sR_n[2,1,0] += c3
-    sR_n[2,1,1] -= 2*c4*n[2]
-    sR_n[2,1,2] += c4*n[1]
-    sR_n[2,2,0] += c4*n[0]
-    sR_n[2,2,1] += c4*n[1]
-
+    sR_n = n.reshape(3,1,1)*(A+B).reshape(1,3,3) + C
     return sR, sR_n
 
 def compute_I(frame):
@@ -154,12 +143,15 @@ class Solver(object):
         # degree of freedom
         dof = len(xi)
 
-        # Compute translation from xref to x
         s = 1 if dof == 6 else np.exp(xi[6])
+        # Compute coefficients for translation from xref to x
         sR, sR_n  = compute_sR(s, xi[3:6])
         sKRKinv   = self.K.dot(sR).dot(self.Kinv)
-        sKR_nKinv = np.einsum('ik,nkl,lj->nij', self.K, sR_n, self.Kinv)
-        Kt        = self.K.dot(xi[:3]).reshape(3,1)
+        sKR_nKinv = zeros((3,3,3))
+        sKR_nKinv[0] = self.K.dot(sR_n[0]).dot(self.Kinv)
+        sKR_nKinv[1] = self.K.dot(sR_n[1]).dot(self.Kinv)
+        sKR_nKinv[2] = self.K.dot(sR_n[2]).dot(self.Kinv)
+        Kt = self.K.dot(xi[:3]).reshape(3,1)
 
         # translate points in reference frame to current frame
         x = sKRKinv.dot(self.xref) + Kt
@@ -169,13 +161,14 @@ class Solver(object):
 
         idx = p[0].astype(int), p[1].astype(int)
 
+        # mask out points outside frame
         H, W = self.I.shape
-        mask = ~((idx[0] >= 0)&(idx[0] < H)&(idx[1] >= 0)&(idx[1] < W))
+        mask = (idx[0]<0)|(idx[0]>=H)|(idx[1]<0)|(idx[1]>=W)
         idx[0][mask] = 0
         idx[1][mask] = 0
 
-        # residual
-        r = self.Iref - self.I[idx]
+        # photometric residual
+        rp = self.Iref - self.I[idx]
 
         # weight 
         I_u_x2 = self.I_u[idx]/x[2]
@@ -183,12 +176,11 @@ class Solver(object):
 
         I_x = np.vstack([-I_u_x2, -I_v_x2, -I_u_x2*p[0] - I_v_x2*p[1]])
         tau_D = sKRKinv.dot(self.xref_D)
-
         I_D = np.einsum('ij,ij->j', I_x, tau_D)
 
         N = len(mask) - mask.sum()
 
-        rp = ((2*self.Ivar + I_D**2 * self.Vref)**-0.5 * r)/N
+        rp = (((2*self.Ivar + I_D**2 * self.Vref)**-0.5)/N) * rp
         rp[mask] = 0
 
         rows = [
@@ -200,7 +192,6 @@ class Solver(object):
                     -(I_x*sKRKinv.dot(self.xref)).sum(0).reshape(1, -1)
                     )
 
-        N = len(mask) - mask.sum()
         J = np.vstack(rows).T/N
         J[mask] = 0
         self.weighted_rp_memo = xi, rp, J
