@@ -19,8 +19,8 @@ from scipy.optimize import least_squares, minimize
 #   - D: inverse depth image
 #   - V: variance image
 # - Points
-#   - p: camera plane (u,v)
-#   - x: world coordinate
+#   - p: 2d point (u,v) in camera plane
+#   - x: 3d point in camera coordinate system
 # - Translation from reference frame to new frame
 #   - n: rotation axis vector
 #   - theta: rotation angle (theta = ||n||)
@@ -28,11 +28,16 @@ from scipy.optimize import least_squares, minimize
 #   - t: translation vector
 #   - rho: scaling factor (s=exp(rho))
 #   - xi: combined vector [t,n] or [t,n,rho]
+# - Maps
+#   - tau: xref -> x
 
 def zeros(shape): return np.zeros(shape, dtype=np.float32)
 def ones(shape):  return np.ones(shape, dtype=np.float32)
 def array(args):  return np.array(args, dtype=np.float32)
 def eye(n):       return np.eye(n, dtype=np.float32)
+
+def affine(coef, x):
+    return coef[0].dot(x) + coef[1]
 
 def multi_inner(A, B):
     """compute inner product of multiple vectors.
@@ -104,6 +109,10 @@ def compute_I(frame):
 
 class Solver(object):
     def __init__(self):
+        # image size
+        self.width  = None
+        self.height = None
+
         # keyframe
         self.pref = None
         self.Iref = None
@@ -138,43 +147,57 @@ class Solver(object):
     def set_frame(self, frame):
         self.I, self.I_u, self.I_v, self.Ivar = compute_I(frame)
 
+    def compute_tau(self, xi):
+        """compute tau and d(tau)/d(xi)
+
+        Both can be represented as affine transformation on xref.
+        """
+
+        include_rho = (len(xi) == 7)
+        s = np.exp(xi[6]) if include_rho else 1
+        R, R_n = compute_R(xi[3:6])
+
+        tau = s*self.K.dot(R).dot(self.Kinv), self.K.dot(xi[:3]).reshape(3,1)
+
+        return tau
+
     def photometric_residual(self, xi, group):
         # Memo result for jacobian
         if self.weighted_rp_memo and self.weighted_rp_memo[0] is xi:
             return self.weighted_rp_memo[1:]
 
-        # Compute warp
+        # Compute translation from xref to x
+        tau = self.compute_tau(xi)
         s = 1 if group == 'SE3' else np.exp(xi[6])
-        R, R_n = compute_R(xi[3:6])
-        sKRKinv = s*self.K.dot(R).dot(self.Kinv)
-        Kt = self.K.dot(xi[:3]).reshape(3, 1)
+        R, R_n     = compute_R(xi[3:6])
+        sKRKinv    = s*self.K.dot(R).dot(self.Kinv)
         sKR_n0Kinv = s*self.K.dot(R_n[0]).dot(self.Kinv)
         sKR_n1Kinv = s*self.K.dot(R_n[1]).dot(self.Kinv)
         sKR_n2Kinv = s*self.K.dot(R_n[2]).dot(self.Kinv)
 
         # translate points in reference frame to current frame
-        y = sKRKinv.dot(self.xref) + Kt
+        x = affine(tau, self.xref)
 
         # project to camera plane
-        q = y[:2]/y[2]
+        q = x[:2]/x[2]
 
         p = q.astype(int)
 
-        mask = ~((p[0] >= 0)&(p[0] < self.I.shape[0])&(p[1] >= 0)&(p[1] < self.I.shape[1]))
+        H, W = self.I.shape
+        mask = ~((p[0] >= 0)&(p[0] < H)&(p[1] >= 0)&(p[1] < W))
         p[:, mask] = 0
 
         # residual
         r = self.Iref - self.I[p[0],p[1]]
 
         # weight 
-        I_u_y2 = self.I_u[p[0],p[1]]/y[2]
-        I_v_y2 = self.I_v[p[0],p[1]]/y[2]
+        I_u_x2 = self.I_u[p[0],p[1]]/x[2]
+        I_v_x2 = self.I_v[p[0],p[1]]/x[2]
 
-        I_y = np.vstack([-I_u_y2, -I_v_y2, -I_u_y2*q[0] - I_v_y2*q[1]])
+        I_x = np.vstack([-I_u_x2, -I_v_x2, -I_u_x2*q[0] - I_v_x2*q[1]])
         tau_D = sKRKinv.dot(self.xref_D)
 
-        I_D = multi_inner(I_y, tau_D)
-        #I_D = (I_y * tau_D).sum(0)
+        I_D = multi_inner(I_x, tau_D)
 
         N = len(mask) - mask.sum()
 
@@ -182,14 +205,14 @@ class Solver(object):
         rp[mask] = 0
 
         rows = [
-            -I_y,
-            -(I_y*sKR_n0Kinv.dot(self.xref)).sum(0).reshape(1, -1),
-            -(I_y*sKR_n1Kinv.dot(self.xref)).sum(0).reshape(1, -1),
-            -(I_y*sKR_n2Kinv.dot(self.xref)).sum(0).reshape(1, -1),
+            -I_x,
+            -(I_x*sKR_n0Kinv.dot(self.xref)).sum(0).reshape(1, -1),
+            -(I_x*sKR_n1Kinv.dot(self.xref)).sum(0).reshape(1, -1),
+            -(I_x*sKR_n2Kinv.dot(self.xref)).sum(0).reshape(1, -1),
             ]
         if group == 'Sim3':
             rows.append(
-                    -(I_y*sKRKinv.dot(self.xref)).sum(0).reshape(1, -1)
+                    -(I_x*sKRKinv.dot(self.xref)).sum(0).reshape(1, -1)
                     )
 
         N = len(mask) - mask.sum()
