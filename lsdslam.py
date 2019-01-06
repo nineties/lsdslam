@@ -158,9 +158,7 @@ class Solver(object):
         s = np.exp(xi[6]) if use_rho else 1
         R, R_n     = compute_R(xi[3:6])
         sKRKinv    = s*self.K.dot(R).dot(self.Kinv)
-        sKR_n0Kinv = s*self.K.dot(R_n[0]).dot(self.Kinv)
-        sKR_n1Kinv = s*self.K.dot(R_n[1]).dot(self.Kinv)
-        sKR_n2Kinv = s*self.K.dot(R_n[2]).dot(self.Kinv)
+        sKR_nKinv = s*np.einsum('ik,nkl,lj->nij', self.K, R_n, self.Kinv)
         Kt         = self.K.dot(xi[:3]).reshape(3,1)
 
         # translate points in reference frame to current frame
@@ -194,9 +192,7 @@ class Solver(object):
 
         rows = [
             -I_x,
-            -(I_x*sKR_n0Kinv.dot(self.xref)).sum(0).reshape(1, -1),
-            -(I_x*sKR_n1Kinv.dot(self.xref)).sum(0).reshape(1, -1),
-            -(I_x*sKR_n2Kinv.dot(self.xref)).sum(0).reshape(1, -1),
+            -np.einsum('ij,nik,kj->nj', I_x, sKR_nKinv, self.xref)
             ]
         if use_rho:
             rows.append(
