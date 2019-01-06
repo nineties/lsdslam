@@ -39,58 +39,58 @@ def eye(n):       return np.eye(n, dtype=np.float32)
 def affine(coef, x):
     return coef[0].dot(x) + coef[1]
 
-def compute_R(n):
-    "compute rotation matrix and its gradient"
+def compute_sR(s, n):
+    "compute rotation matrix with scaling and its gradient"
     theta = np.linalg.norm(n)
-    R_n = zeros((3,3,3))
+    sR_n = zeros((3,3,3))
     if np.abs(theta) < 1e-30:
         # Avoid division by zero
-        R_n[0,1,2] = R_n[1,2,0] = R_n[2,0,1] = -1
-        R_n[0,2,1] = R_n[1,0,2] = R_n[2,1,0] = 1
-        return eye(3), R_n
+        sR_n[0,1,2] = sR_n[1,2,0] = sR_n[2,0,1] = -s
+        sR_n[0,2,1] = sR_n[1,0,2] = sR_n[2,1,0] = s
+        return eye(3), sR_n
 
     sin = np.sin(theta)
     cos = np.cos(theta)
-    c1 = (theta * cos - sin) / theta**3
-    c2 = (theta * sin + 2 *cos - 2) / theta**4
-    c3 = sin / theta
-    c4 = (1 - cos) / theta**2
+    c1 = s * (theta * cos - sin) / theta**3
+    c2 = s * (theta * sin + 2 *cos - 2) / theta**4
+    c3 = s * sin / theta
+    c4 = s * (1 - cos) / theta**2
 
     N = array([[0, -n[2], n[1]], [n[2], 0, -n[0]], [-n[1], n[0], 0]])
-    R = eye(3) + c3 * N + c4 * N**2
+    sR = s * eye(3) + c3 * N + c4 * N**2
 
-    R_n[0] = c1*n[0]*N + c2*n[0]*N**2
-    R_n[1] = c1*n[1]*N + c2*n[1]*N**2
-    R_n[2] = c1*n[2]*N + c2*n[2]*N**2
+    sR_n[0] = c1*n[0]*N + c2*n[0]*N**2
+    sR_n[1] = c1*n[1]*N + c2*n[1]*N**2
+    sR_n[2] = c1*n[2]*N + c2*n[2]*N**2
 
-    R_n[0,0,1] += c4*n[1]
-    R_n[0,0,2] += c4*n[2]
-    R_n[0,1,0] += c4*n[1]
-    R_n[0,1,1] -= 2*c4*n[0]
-    R_n[0,1,2] -= c3
-    R_n[0,2,0] += c4*n[2]
-    R_n[0,2,1] += c3
-    R_n[0,2,2] -= 2*c4*n[0]
+    sR_n[0,0,1] += c4*n[1]
+    sR_n[0,0,2] += c4*n[2]
+    sR_n[0,1,0] += c4*n[1]
+    sR_n[0,1,1] -= 2*c4*n[0]
+    sR_n[0,1,2] -= c3
+    sR_n[0,2,0] += c4*n[2]
+    sR_n[0,2,1] += c3
+    sR_n[0,2,2] -= 2*c4*n[0]
 
-    R_n[1,0,0] -= 2*c4*n[1]
-    R_n[1,0,1] += c4*n[0]
-    R_n[1,0,2] += c3
-    R_n[1,1,0] += c4*n[0]
-    R_n[1,1,2] += c4*n[2]
-    R_n[1,2,0] -= c3
-    R_n[1,2,1] += c4*n[2]
-    R_n[1,2,2] -= 2*c4*n[1]
+    sR_n[1,0,0] -= 2*c4*n[1]
+    sR_n[1,0,1] += c4*n[0]
+    sR_n[1,0,2] += c3
+    sR_n[1,1,0] += c4*n[0]
+    sR_n[1,1,2] += c4*n[2]
+    sR_n[1,2,0] -= c3
+    sR_n[1,2,1] += c4*n[2]
+    sR_n[1,2,2] -= 2*c4*n[1]
 
-    R_n[2,0,0] -= 2*c4*n[2]
-    R_n[2,0,1] -= c3
-    R_n[2,0,2] += c4*n[0]
-    R_n[2,1,0] += c3
-    R_n[2,1,1] -= 2*c4*n[2]
-    R_n[2,1,2] += c4*n[1]
-    R_n[2,2,0] += c4*n[0]
-    R_n[2,2,1] += c4*n[1]
+    sR_n[2,0,0] -= 2*c4*n[2]
+    sR_n[2,0,1] -= c3
+    sR_n[2,0,2] += c4*n[0]
+    sR_n[2,1,0] += c3
+    sR_n[2,1,1] -= 2*c4*n[2]
+    sR_n[2,1,2] += c4*n[1]
+    sR_n[2,2,0] += c4*n[0]
+    sR_n[2,2,1] += c4*n[1]
 
-    return R, R_n
+    return sR, sR_n
 
 def compute_I(frame):
     "compute smoothed image, its gradient and variance"
@@ -151,13 +151,14 @@ class Solver(object):
         if self.weighted_rp_memo and self.weighted_rp_memo[0] is xi:
             return self.weighted_rp_memo[1:]
 
-        use_rho = (len(xi) != 6)
+        # degree of freedom
+        dof = len(xi)
 
         # Compute translation from xref to x
-        s = np.exp(xi[6]) if use_rho else 1
-        R, R_n    = compute_R(xi[3:6])
-        sKRKinv   = s*self.K.dot(R).dot(self.Kinv)
-        sKR_nKinv = s*np.einsum('ik,nkl,lj->nij', self.K, R_n, self.Kinv)
+        s = 1 if dof == 6 else np.exp(xi[6])
+        sR, sR_n  = compute_sR(s, xi[3:6])
+        sKRKinv   = self.K.dot(sR).dot(self.Kinv)
+        sKR_nKinv = np.einsum('ik,nkl,lj->nij', self.K, sR_n, self.Kinv)
         Kt        = self.K.dot(xi[:3]).reshape(3,1)
 
         # translate points in reference frame to current frame
@@ -194,7 +195,7 @@ class Solver(object):
             -I_x,
             -np.einsum('ij,nik,kj->nj', I_x, sKR_nKinv, self.xref)
             ]
-        if use_rho:
+        if dof==7:
             rows.append(
                     -(I_x*sKRKinv.dot(self.xref)).sum(0).reshape(1, -1)
                     )
