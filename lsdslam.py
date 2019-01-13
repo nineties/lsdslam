@@ -3,6 +3,7 @@ from collections import namedtuple
 import numpy as np
 import scipy
 import scipy.signal
+from PIL import Image, ImageDraw
 from scipy.ndimage import sobel
 from scipy.optimize import least_squares, minimize
 
@@ -253,9 +254,12 @@ class Tracker(object):
                 )
         self.solver.set_K(K)
 
+    def select_points(self, I, Iu, Iv):
+        return np.where(Iu**2 + Iv**2 > self.mask_thresh**2)
+
     def set_initial_frame(self, frame):
-        I, gu, gv, _ = compute_I(frame)
-        points = np.where(np.sqrt(gu**2 + gv**2) > self.mask_thresh)
+        I, Iu, Iv, _ = compute_I(frame)
+        points = self.select_points(I, Iu, Iv)
         n = len(points[0])
         self.solver.set_keyframe(
                 pref=array(points),
@@ -271,3 +275,18 @@ class Tracker(object):
             return zeros(3), zeros(3)
         self.solver.set_frame(I)
         return self.solver.estimate_pose(dof=6)
+
+    def plot_I(self, fname, frame):
+        I, Iu, Iv, _ = compute_I(frame)
+        g = np.sqrt(Iu**2 + Iv**2)
+        Image.fromarray(np.c_[I, g].astype(np.uint8)).save(fname)
+
+    def plot_subpoints(self, fname, frame):
+        I, Iu, Iv, _ = compute_I(frame)
+        ys, xs = self.select_points(I, Iu, Iv)
+        image = Image.fromarray(frame).convert('RGB')
+        draw = ImageDraw.Draw(image)
+        for y, x in np.transpose((ys, xs)):
+            draw.point([int(x), int(y)], fill='red')
+        image.save(fname)
+
