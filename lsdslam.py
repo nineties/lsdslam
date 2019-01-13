@@ -10,8 +10,6 @@ from scipy.optimize import least_squares, minimize
 # In the following codes we use following notations:
 #
 # - F_x:    (partial) differential coefficient d(F)/d(x).
-# - F:      F in new frame
-# - Fref:   F in reference frame
 #
 # and use following symbols:
 #
@@ -30,7 +28,7 @@ from scipy.optimize import least_squares, minimize
 #   - rho: scaling factor (s=exp(rho))
 #   - xi: combined vector [t,n] or [t,n,rho]
 # - Maps
-#   - tau: xref -> x
+#   - tau: ref.x -> x
 
 def zeros(shape): return np.zeros(shape, dtype=np.float32)
 def ones(shape):  return np.ones(shape, dtype=np.float32)
@@ -82,14 +80,34 @@ def compute_sR(s, n):
     sR_n = n.reshape(3,1,1)*(A+B).reshape(1,3,3) + C
     return sR, sR_n
 
-def compute_I(frame, size):
-    "compute smoothed image, its gradient and variance"
-    w, h, scale_w, scale_h = size
-    I = zoom(frame, (scale_h, scale_w)).astype(np.float32)
 
-    I_u = sobel(I, 0, mode='constant')/4*scale_h
-    I_v = sobel(I, 1, mode='constant')/4*scale_w
-    return I, I_u, I_v, I.var()
+class Frame(object):
+    def __init__(self, frame, size):
+        "compute smoothed image, its gradient and variance"
+        w, h, scale_w, scale_h = size
+        self.I = zoom(frame, (scale_h, scale_w)).astype(np.float32)
+
+        self.I_u = sobel(self.I, 0, mode='constant')/4*scale_h
+        self.I_v = sobel(self.I, 1, mode='constant')/4*scale_w
+        self.Ivar = self.I.var()
+
+class KeyFrame(Frame):
+    def __init__(self, frame, mask_thresh, D0, V0):
+        points = np.where(frame.I_u**2 + frame.I_v**2 > mask_thresh**2)
+        n = len(points[0])
+
+        self.frame = frame
+        self.I = frame.I[points]
+        self.D = ones(n) * D0
+        self.V = ones(n) * V0
+
+        p = array(points)
+        d = self.D.reshape(1,-1)
+
+        self.x = np.r_[p/d, 1/d]           # pi^-1(pref, Dref)
+        self.x_D = np.r_[-p/d**2, -1/d**2] # d(pi^-1)/d(Dref)(pref,Dref)
+        self.meanD = 1
+
 
 class Solver(object):
     def __init__(
@@ -109,47 +127,18 @@ class Solver(object):
         self.D0 = D0
         self.V0 = V0
 
-        # image size
-        self.width  = None
-        self.height = None
-
-        # keyframe
-        self.Iref = None
-        self.Vref = None
-        self.xref = None
-        self.xref_D = None
-
-        # current frame
-        self.I = None
-        self.I_u = None
-        self.I_v = None
-        self.Ivar = None
-
         # camera matrix
         self.K = K
         self.Kinv = np.linalg.inv(K)
 
         self.weighted_rp_memo = None
 
-    def select_points(self, I, Iu, Iv):
-        return np.where(Iu**2 + Iv**2 > self.mask_thresh**2)
-
     def set_initial_frame(self, frame):
-        I, Iu, Iv, _ = compute_I(frame, self.size)
-        points = self.select_points(I, Iu, Iv)
-        n = len(points[0])
-        pref = array(points)
-        self.Iref = I[points]
-        self.Dref = ones(n) * self.D0
-        self.Vref = ones(n) * self.V0
-
-        d = self.Dref.reshape(1,-1)
-
-        self.xref = np.r_[pref/d, 1/d]           # pi^-1(pref, Dref)
-        self.xref_D = np.r_[-pref/d**2, -1/d**2] # d(pi^-1)/d(Dref)(pref,Dref)
+        self.ref = KeyFrame(Frame(frame, self.size), self.mask_thresh,
+                self.D0, self.V0)
 
     def set_frame(self, frame):
-        self.I, self.I_u, self.I_v, self.Ivar = compute_I(frame, self.size)
+        self.frame = Frame(frame, self.size)
 
     def compute_residual(self, xi):
         # Memo result for jacobian
@@ -160,7 +149,7 @@ class Solver(object):
         dof = len(xi)
 
         s = 1 if dof == 6 else np.exp(xi[6])
-        # Compute coefficients for translation from xref to x
+        # Compute coefficients for translation from ref.x to x
         sR, sR_n  = compute_sR(s, xi[3:6])
         sKRKinv   = self.K.dot(sR).dot(self.Kinv)
         sKR_nKinv = zeros((3,3,3))
@@ -170,7 +159,7 @@ class Solver(object):
         Kt = self.K.dot(xi[:3]).reshape(3,1)
 
         # translate points in reference frame to current frame
-        x = sKRKinv.dot(self.xref) + Kt
+        x = sKRKinv.dot(self.ref.x) + Kt
 
         # project to camera plane
         p = x[:2]/x[2]
@@ -179,34 +168,34 @@ class Solver(object):
         px = p[1].astype(int)
 
         # mask out points outside frame
-        H, W = self.I.shape
+        H, W = self.frame.I.shape
         mask = (py<0)|(py>=H)|(px<0)|(px>=W)
         px[mask] = 0
         py[mask] = 0
 
         # photometric residual
-        rp = self.Iref - self.I[py,px]
+        rp = self.ref.I - self.frame.I[py,px]
 
         # weight 
-        I_u_x2 = -self.I_u[py,px]/x[2]
-        I_v_x2 = -self.I_v[py,px]/x[2]
+        I_u_x2 = -self.frame.I_u[py,px]/x[2]
+        I_v_x2 = -self.frame.I_v[py,px]/x[2]
 
         I_x = np.vstack([I_u_x2, I_v_x2, I_u_x2*p[0] + I_v_x2*p[1]])
-        tau_D = sKRKinv.dot(self.xref_D)
+        tau_D = sKRKinv.dot(self.ref.x_D)
         I_D = np.einsum('ij,ij->j', I_x, tau_D)
 
         N = len(mask) - mask.sum()
 
-        rp = (((2*self.Ivar + I_D**2 * self.Vref)**-0.5)/N) * rp
+        rp = (((2*self.frame.Ivar + I_D**2 * self.ref.V)**-0.5)/N) * rp
         rp[mask] = 0
 
         rows = [
             -I_x,
-            -np.einsum('ij,nik,kj->nj', I_x, sKR_nKinv, self.xref)
+            -np.einsum('ij,nik,kj->nj', I_x, sKR_nKinv, self.ref.x)
             ]
         if dof==7:
             rows.append(
-                    -(I_x*sKRKinv.dot(self.xref)).sum(0).reshape(1, -1)
+                    -(I_x*sKRKinv.dot(self.ref.x)).sum(0).reshape(1, -1)
                     )
 
         J = np.vstack(rows).T/N
@@ -303,6 +292,13 @@ class Tracker(object):
             xi = solver.estimate_pose(xi)
         return xi[:3], xi[3:6], xi[6]
 
+class Graph(object):
+    def __init__(self):
+        self.poses = []
+
+    def add_pose(self, t, n, rho=0):
+        self.poses.append((t, n, rho))
+
 
 class SLAMSystem(object):
     def __init__(self):
@@ -313,6 +309,7 @@ class SLAMSystem(object):
         self.rho = 0        # log(rotation angle)
 
         self.tracker = Tracker()
+        self.graph = Graph()
 
     def __enter__(self):
         return self
@@ -321,4 +318,8 @@ class SLAMSystem(object):
         pass
 
     def track(self, frame):
+        # Estimate current pose
         t, n = self.tracker.estimate(frame, self.t, self.n)
+        self.graph.add_pose(t, n)
+
+        # Select keyframe
