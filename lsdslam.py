@@ -3,7 +3,7 @@ from collections import namedtuple
 import numpy as np
 import scipy
 import scipy.signal
-from scipy.ndimage import gaussian_filter, sobel
+from scipy.ndimage import sobel
 from scipy.optimize import least_squares, minimize
 
 # In the following codes we use following notations:
@@ -83,7 +83,7 @@ def compute_sR(s, n):
 
 def compute_I(frame):
     "compute smoothed image, its gradient and variance"
-    I = gaussian_filter(frame.astype(np.float32), 3, mode='constant')
+    I = frame.astype(np.float32)
     I_u = sobel(I, 0, mode='constant')/4
     I_v = sobel(I, 1, mode='constant')/4
     return I, I_u, I_v, I.var()
