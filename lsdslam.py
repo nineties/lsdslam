@@ -86,8 +86,9 @@ def compute_I(frame, size):
     "compute smoothed image, its gradient and variance"
     w, h, scale_w, scale_h = size
     I = zoom(frame, (scale_h, scale_w)).astype(np.float32)
-    I_u = sobel(I, 0, mode='constant')/4
-    I_v = sobel(I, 1, mode='constant')/4
+
+    I_u = sobel(I, 0, mode='constant')/4*scale_h
+    I_v = sobel(I, 1, mode='constant')/4*scale_w
     return I, I_u, I_v, I.var()
 
 class Solver(object):
