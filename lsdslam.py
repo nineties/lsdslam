@@ -267,12 +267,12 @@ class Tracker(object):
                 Vref=ones(n) * self.V0
                 )
 
-    def estimate(self, I):
+    def estimate(self, frame):
         self.frame += 1
         if self.frame == 1:
-            self.set_initial_frame(I)
+            self.set_initial_frame(frame)
             return zeros(3), zeros(3)
-        self.algo.set_frame(I)
+        self.algo.set_frame(frame)
         return self.algo.estimate_pose(dof=6)
 
     def plot_I(self, fname, frame):
