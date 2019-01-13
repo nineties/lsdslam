@@ -89,7 +89,7 @@ def compute_I(frame):
     I_v = sobel(I, 1, mode='constant')/4
     return I, I_u, I_v, I.var()
 
-class Solver(object):
+class Algo(object):
     def __init__(
             self,
             huber_delta,
@@ -247,11 +247,11 @@ class Tracker(object):
         self.V0 = V0
 
         self.eps = eps
-        self.solver = Solver(
+        self.algo = Algo(
                 huber_delta=huber_delta,
                 eps=eps
                 )
-        self.solver.set_K(K)
+        self.algo.set_K(K)
 
     def select_points(self, I, Iu, Iv):
         return np.where(Iu**2 + Iv**2 > self.mask_thresh**2)
@@ -260,7 +260,7 @@ class Tracker(object):
         I, Iu, Iv, _ = compute_I(frame)
         points = self.select_points(I, Iu, Iv)
         n = len(points[0])
-        self.solver.set_keyframe(
+        self.algo.set_keyframe(
                 pref=array(points),
                 Iref=I[points],
                 Dref=ones(n) * self.D0,
@@ -272,8 +272,8 @@ class Tracker(object):
         if self.frame == 1:
             self.set_initial_frame(I)
             return zeros(3), zeros(3)
-        self.solver.set_frame(I)
-        return self.solver.estimate_pose(dof=6)
+        self.algo.set_frame(I)
+        return self.algo.estimate_pose(dof=6)
 
     def plot_I(self, fname, frame):
         I, Iu, Iv, _ = compute_I(frame)
