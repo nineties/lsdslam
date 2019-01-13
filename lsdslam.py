@@ -232,16 +232,11 @@ class Solver(object):
                 ftol=self.eps,
                 gtol=self.eps
                 )
+        #print(result.cost)
         return result.x
 
 class Tracker(object):
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        pass
-
-    def init(self,
+    def __init__(self,
             D0=1.0,
             V0=1e5,
             mask_thresh=50.0,
@@ -293,3 +288,16 @@ class Tracker(object):
             xi = solver.estimate_pose(xi)
         self.pose[:6] = xi
         return xi[:3], xi[3:]
+
+class SLAMSystem(object):
+    def __init__(self):
+        self.tracker = Tracker()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        pass
+
+    def track(self, frame):
+        pass
