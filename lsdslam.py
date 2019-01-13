@@ -251,6 +251,9 @@ class Tracker(object):
             ):
         self.frame = 0
 
+        # Current pose wrt keyframe
+        self.pose = zeros(7)
+
         self.pyramids = []
         for size in pyramids:
             W, H = pyramids[-1]
@@ -284,7 +287,8 @@ class Tracker(object):
             return zeros(3), zeros(3)
         self.set_frame(frame)
 
-        xi = zeros(6)
+        xi = self.pose[:6]
         for solver in self.solvers:
             xi = solver.estimate_pose(xi)
+        self.pose[:6] = xi
         return xi[:3], xi[3:]
