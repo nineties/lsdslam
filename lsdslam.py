@@ -243,12 +243,9 @@ class Tracker(object):
             huber_delta=3,
             K=np.eye(3, dtype=np.float32),
             eps=0.001,
-            pyramids=[(15,10), (30,20), (60,40), (120,80), (240,160)]
+            pyramids=[(30,20), (60,40), (120,80), (240,160)]
             ):
         self.frame = 0
-
-        # Current pose wrt keyframe
-        self.pose = zeros(7)
 
         self.pyramids = []
         for size in pyramids:
@@ -276,21 +273,45 @@ class Tracker(object):
         for solver in self.solvers:
             solver.set_frame(frame)
 
-    def estimate(self, frame):
+    def estimate(self, frame, t, n, rho=None):
+        if rho is None:
+            return self.estaimte_se3(frame, t, n)
+        else:
+            return self.estimate_sim3(frame, t, n, rho)
+
+    def estaimte_se3(self, frame, t, n):
         self.frame += 1
         if self.frame == 1:
             self.set_initial_frame(frame)
             return zeros(3), zeros(3)
         self.set_frame(frame)
 
-        xi = self.pose[:6]
+        xi = np.r_[t, n]
         for solver in self.solvers:
             xi = solver.estimate_pose(xi)
-        self.pose[:6] = xi
         return xi[:3], xi[3:]
+
+    def estimate_sim3(self, frame, t, n, rho):
+        self.frame += 1
+        if self.frame == 1:
+            self.set_initial_frame(frame)
+            return zeros(3), zeros(3), 0
+        self.set_frame(frame)
+
+        xi = np.r_[t, n, rho]
+        for solver in self.solvers:
+            xi = solver.estimate_pose(xi)
+        return xi[:3], xi[3:6], xi[6]
+
 
 class SLAMSystem(object):
     def __init__(self):
+
+        # Pose
+        self.t = zeros(3)   # transition
+        self.n = zeros(3)   # rotation axis
+        self.rho = 0        # log(rotation angle)
+
         self.tracker = Tracker()
 
     def __enter__(self):
@@ -300,4 +321,4 @@ class SLAMSystem(object):
         pass
 
     def track(self, frame):
-        pass
+        t, n = self.tracker.estimate(frame, self.t, self.n)
