@@ -103,7 +103,6 @@ class Solver(object):
         self.height = None
 
         # keyframe
-        self.pref = None
         self.Iref = None
         self.Vref = None
         self.xref = None
@@ -289,4 +288,3 @@ class Tracker(object):
         for y, x in np.transpose((ys, xs)):
             draw.point([int(x), int(y)], fill='red')
         image.save(fname)
-
