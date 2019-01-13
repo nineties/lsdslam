@@ -281,7 +281,7 @@ class Tracker(object):
         g = np.sqrt(Iu**2 + Iv**2)
         Image.fromarray(np.c_[I, g].astype(np.uint8)).save(fname)
 
-    def plot_subpoints(self, fname, frame):
+    def plot_selected_points(self, fname, frame):
         I, Iu, Iv, _ = compute_I(frame)
         ys, xs = self.select_points(I, Iu, Iv)
         image = Image.fromarray(frame).convert('RGB')
