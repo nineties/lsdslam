@@ -159,20 +159,21 @@ class Algo(object):
         # project to camera plane
         p = x[:2]/x[2]
 
-        idx = p[0].astype(int), p[1].astype(int)
+        py = p[0].astype(int)
+        px = p[1].astype(int)
 
         # mask out points outside frame
         H, W = self.I.shape
-        mask = (idx[0]<0)|(idx[0]>=H)|(idx[1]<0)|(idx[1]>=W)
-        idx[0][mask] = 0
-        idx[1][mask] = 0
+        mask = (py<0)|(py>=H)|(px<0)|(px>=W)
+        px[mask] = 0
+        py[mask] = 0
 
         # photometric residual
-        rp = self.Iref - self.I[idx]
+        rp = self.Iref - self.I[py,px]
 
         # weight 
-        I_u_x2 = -self.I_u[idx]/x[2]
-        I_v_x2 = -self.I_v[idx]/x[2]
+        I_u_x2 = -self.I_u[py,px]/x[2]
+        I_v_x2 = -self.I_v[py,px]/x[2]
 
         I_x = np.vstack([I_u_x2, I_v_x2, I_u_x2*p[0] + I_v_x2*p[1]])
         tau_D = sKRKinv.dot(self.xref_D)
