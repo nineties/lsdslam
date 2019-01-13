@@ -4,7 +4,7 @@ import numpy as np
 import scipy
 import scipy.signal
 from PIL import Image, ImageDraw
-from scipy.ndimage import sobel
+from scipy.ndimage import sobel, zoom
 from scipy.optimize import least_squares, minimize
 
 # In the following codes we use following notations:
@@ -82,21 +82,31 @@ def compute_sR(s, n):
     sR_n = n.reshape(3,1,1)*(A+B).reshape(1,3,3) + C
     return sR, sR_n
 
-def compute_I(frame):
+def compute_I(frame, size):
     "compute smoothed image, its gradient and variance"
-    I = frame.astype(np.float32)
+    w, h, scale_w, scale_h = size
+    I = zoom(frame, (scale_h, scale_w)).astype(np.float32)
     I_u = sobel(I, 0, mode='constant')/4
     I_v = sobel(I, 1, mode='constant')/4
     return I, I_u, I_v, I.var()
 
-class Algo(object):
+class Solver(object):
     def __init__(
             self,
+            size,
+            mask_thresh,
             huber_delta,
-            eps
+            eps,
+            D0,
+            V0,
+            K
             ):
+        self.size = size
+        self.mask_thresh = mask_thresh
         self.huber_delta = huber_delta
         self.eps = eps
+        self.D0 = D0
+        self.V0 = V0
 
         # image size
         self.width  = None
@@ -115,25 +125,30 @@ class Algo(object):
         self.Ivar = None
 
         # camera matrix
-        self.K = None
-        self.Kinv = None
-
-        self.weighted_rp_memo = None
-
-    def set_K(self, K):
         self.K = K
         self.Kinv = np.linalg.inv(K)
 
-    def set_keyframe(self, pref, Iref, Dref, Vref):
-        self.Iref = Iref
-        self.Vref = Vref
-        d = Dref.reshape(1,-1)
+        self.weighted_rp_memo = None
+
+    def select_points(self, I, Iu, Iv):
+        return np.where(Iu**2 + Iv**2 > self.mask_thresh**2)
+
+    def set_initial_frame(self, frame):
+        I, Iu, Iv, _ = compute_I(frame, self.size)
+        points = self.select_points(I, Iu, Iv)
+        n = len(points[0])
+        pref = array(points)
+        self.Iref = I[points]
+        self.Dref = ones(n) * self.D0
+        self.Vref = ones(n) * self.V0
+
+        d = self.Dref.reshape(1,-1)
 
         self.xref = np.r_[pref/d, 1/d]           # pi^-1(pref, Dref)
         self.xref_D = np.r_[-pref/d**2, -1/d**2] # d(pi^-1)/d(Dref)(pref,Dref)
 
     def set_frame(self, frame):
-        self.I, self.I_u, self.I_v, self.Ivar = compute_I(frame)
+        self.I, self.I_u, self.I_v, self.Ivar = compute_I(frame, self.size)
 
     def compute_residual(self, xi):
         # Memo result for jacobian
@@ -205,25 +220,18 @@ class Algo(object):
     def residual_jac(self, xi):
         return self.compute_residual(xi)[1]
 
-    def estimate_pose(self, dof):
-        start = time.time()
+    def estimate_pose(self, xi):
         result = least_squares(
                 fun=self.residual,
                 jac=self.residual_jac,
-                x0=zeros(dof),
+                x0=xi,
                 loss='huber',
                 f_scale=self.huber_delta,
                 xtol=self.eps,
                 ftol=self.eps,
                 gtol=self.eps
                 )
-        elapsed = time.time() - start
-        t = result.x[:3]
-        n = result.x[3:6]
-        if dof==6:
-            return t, n
-        else:
-            return t, n, result.x[6]
+        return result.x
 
 class Tracker(object):
     def __enter__(self):
@@ -239,53 +247,44 @@ class Tracker(object):
             huber_delta=3,
             K=np.eye(3, dtype=np.float32),
             eps=0.001,
+            pyramids=[(15,10), (30,20), (60,40), (120,80), (240,160)]
             ):
         self.frame = 0
 
-        self.mask_thresh = mask_thresh
-        self.huber_delta = huber_delta
-        self.D0 = D0
-        self.V0 = V0
+        self.pyramids = []
+        for size in pyramids:
+            W, H = pyramids[-1]
+            w, h = size
+            self.pyramids.append((w, h, float(w)/W, float(h)/H))
 
-        self.eps = eps
-        self.algo = Algo(
+        self.solvers = []
+        for size in self.pyramids:
+            self.solvers.append(Solver(
+                size=size,
+                mask_thresh=mask_thresh,
                 huber_delta=huber_delta,
-                eps=eps
-                )
-        self.algo.set_K(K)
-
-    def select_points(self, I, Iu, Iv):
-        return np.where(Iu**2 + Iv**2 > self.mask_thresh**2)
+                eps=eps,
+                D0=D0,
+                V0=V0,
+                K=K
+                ))
 
     def set_initial_frame(self, frame):
-        I, Iu, Iv, _ = compute_I(frame)
-        points = self.select_points(I, Iu, Iv)
-        n = len(points[0])
-        self.algo.set_keyframe(
-                pref=array(points),
-                Iref=I[points],
-                Dref=ones(n) * self.D0,
-                Vref=ones(n) * self.V0
-                )
+        for solver in self.solvers:
+            solver.set_initial_frame(frame)
+
+    def set_frame(self, frame):
+        for solver in self.solvers:
+            solver.set_frame(frame)
 
     def estimate(self, frame):
         self.frame += 1
         if self.frame == 1:
             self.set_initial_frame(frame)
             return zeros(3), zeros(3)
-        self.algo.set_frame(frame)
-        return self.algo.estimate_pose(dof=6)
+        self.set_frame(frame)
 
-    def plot_I(self, fname, frame):
-        I, Iu, Iv, _ = compute_I(frame)
-        g = np.sqrt(Iu**2 + Iv**2)
-        Image.fromarray(np.c_[I, g].astype(np.uint8)).save(fname)
-
-    def plot_selected_points(self, fname, frame):
-        I, Iu, Iv, _ = compute_I(frame)
-        ys, xs = self.select_points(I, Iu, Iv)
-        image = Image.fromarray(frame).convert('RGB')
-        draw = ImageDraw.Draw(image)
-        for y, x in np.transpose((ys, xs)):
-            draw.point([int(x), int(y)], fill='red')
-        image.save(fname)
+        xi = zeros(6)
+        for solver in self.solvers:
+            xi = solver.estimate_pose(xi)
+        return xi[:3], xi[3:]
