@@ -202,6 +202,7 @@ class Solver(object):
         J = np.vstack(rows).T/N
         J[mask] = 0
         self.weighted_rp_memo = xi, rp, J
+        self.point_usage = (mask == 0).mean()
 
         return rp, J
 
@@ -273,25 +274,25 @@ class Tracker(object):
         self.frame += 1
         if self.frame == 1:
             self.set_initial_frame(frame)
-            return zeros(3), zeros(3)
+            return zeros(3), zeros(3), 0
         self.set_frame(frame)
 
         xi = np.r_[t, n]
         for solver in self.solvers:
             xi = solver.estimate_pose(xi)
-        return xi[:3], xi[3:]
+        return xi[:3], xi[3:], self.solvers[-1].point_usage
 
     def estimate_sim3(self, frame, t, n, rho):
         self.frame += 1
         if self.frame == 1:
             self.set_initial_frame(frame)
-            return zeros(3), zeros(3), 0
+            return zeros(3), zeros(3), 0, 0
         self.set_frame(frame)
 
         xi = np.r_[t, n, rho]
         for solver in self.solvers:
             xi = solver.estimate_pose(xi)
-        return xi[:3], xi[3:6], xi[6]
+        return xi[:3], xi[3:6], xi[6], self.solvers[-1].point_usage
 
 class Graph(object):
     def __init__(self):
@@ -343,7 +344,7 @@ class SLAMSystem(object):
 
     def track(self, frame):
         # Estimate current pose
-        t, n = self.tracker.estimate(frame, self.t, self.n)
+        t, n, usage = self.tracker.estimate(frame, self.t, self.n)
         self.graph.add_pose(t, n)
 
         # Select keyframe
