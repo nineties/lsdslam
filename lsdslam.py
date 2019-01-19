@@ -263,6 +263,9 @@ class Tracker(object):
         for solver in self.solvers:
             solver.set_frame(frame)
 
+    def get_keyframe(self):
+        return self.solvers[-1].ref
+
     def estimate(self, frame, t, n, rho=None):
         if rho is None:
             return self.estaimte_se3(frame, t, n)
@@ -293,7 +296,7 @@ class Tracker(object):
             xi = solver.estimate_pose(xi)
         return xi[:3], xi[3:6], xi[6], self.solvers[-1].point_usage
 
-class Graph(object):
+class PoseGraph(object):
     def __init__(self):
         self.poses = []
 
@@ -316,7 +319,14 @@ class OptimizationThread(Thread):
         self.system = system
 
 class SLAMSystem(object):
-    def __init__(self):
+    def __init__(self,
+            dist_weight=16,
+            usage_weight=9,
+            init_phase_count=5,
+            ):
+        self.init_phase_count = init_phase_count
+        self.dist_weight = dist_weight
+        self.usage_weight = usage_weight
 
         # Pose
         self.t = zeros(3)   # transition
@@ -324,7 +334,7 @@ class SLAMSystem(object):
         self.rho = 0        # log(rotation angle)
 
         self.tracker = Tracker()
-        self.graph = Graph()
+        self.graph = PoseGraph()
 
         self.mapping_thread = MappingThread(self)
         self.constraint_thread = ConstraintThread(self)
@@ -347,3 +357,14 @@ class SLAMSystem(object):
         self.graph.add_pose(t, n)
 
         # Select keyframe
+        dist = t * self.tracker.get_keyframe().meanD
+        score = self.dist_weight*dist.dot(dist) + self.usage_weight*(1-usage)**2
+
+        if len(self.graph.poses) < self.init_phase_count:
+            thresh = 0.14 + 0.56 * len(self.graph.poses) / self.init_phase_count
+        else:
+            thresh = 1
+        if score > thresh:
+            print('new key frame')
+        else:
+            print('no new key frame')
