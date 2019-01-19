@@ -223,7 +223,6 @@ class Solver(object):
                 ftol=self.eps,
                 gtol=self.eps
                 )
-        #print(result.cost)
         return result.x
 
 class Tracker(object):
