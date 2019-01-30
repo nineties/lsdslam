@@ -308,15 +308,27 @@ class MappingThread(Thread):
         super().__init__()
         self.system = system
 
+    def run(self):
+        while not self.system.terminate:
+            print('mapping')
+
 class ConstraintThread(Thread):
     def __init__(self, system):
         super().__init__()
         self.system = system
 
+    def run(self):
+        while not self.system.terminate:
+            print('constraint')
+
 class OptimizationThread(Thread):
     def __init__(self, system):
         super().__init__()
         self.system = system
+
+    def run(self):
+        while not self.system.terminate:
+            print('optimization')
 
 class SLAMSystem(object):
     def __init__(self,
@@ -336,6 +348,7 @@ class SLAMSystem(object):
         self.tracker = Tracker()
         self.graph = PoseGraph()
 
+        self.terminate = False
         self.mapping_thread = MappingThread(self)
         self.constraint_thread = ConstraintThread(self)
         self.optimization_thread = OptimizationThread(self)
@@ -347,6 +360,7 @@ class SLAMSystem(object):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        self.terminate = True
         self.mapping_thread.join()
         self.constraint_thread.join()
         self.optimization_thread.join()
