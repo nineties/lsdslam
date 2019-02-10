@@ -85,15 +85,17 @@ def compute_sR(s, n):
 class Frame(object):
     def __init__(self, frame, size):
         "compute smoothed image, its gradient and variance"
-        w, h, scale_w, scale_h = size
-        self.I = zoom(frame, (scale_h, scale_w)).astype(np.float32)
+        w, h, dx, dy = size
+        self.size = size
+        self.I = zoom(frame, (1/dy, 1/dx)).astype(np.float32)
 
-        self.I_u = sobel(self.I, 0, mode='constant')/4*scale_h
-        self.I_v = sobel(self.I, 1, mode='constant')/4*scale_w
+        self.I_u = sobel(self.I, 0, mode='constant')/(4*dy)
+        self.I_v = sobel(self.I, 1, mode='constant')/(4*dx)
         self.Ivar = self.I.var()
 
 class KeyFrame(Frame):
     def __init__(self, frame, mask_thresh, D0, V0):
+        w, h, dx, dy = frame.size
         points = np.where(frame.I_u**2 + frame.I_v**2 > mask_thresh**2)
         n = len(points[0])
 
@@ -103,6 +105,8 @@ class KeyFrame(Frame):
         self.V = ones(n) * V0
 
         p = array(points)
+        p[0] *= dy
+        p[1] *= dx
         d = self.D.reshape(1,-1)
 
         self.x = np.r_[p/d, 1/d]           # pi^-1(pref, Dref)
@@ -243,10 +247,9 @@ class Tracker(object):
         self.frame = 0
 
         self.pyramids = []
-        for size in pyramids:
-            W, H = pyramids[-1]
-            w, h = size
-            self.pyramids.append((w, h, float(w)/W, float(h)/H))
+        for w, h in pyramids:
+            W, H = pyramids[-1]     # resolution of level 0
+            self.pyramids.append((w, h, W/float(w), H/float(h)))
 
         self.solvers = []
         for size in self.pyramids:
