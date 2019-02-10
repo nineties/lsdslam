@@ -213,6 +213,11 @@ class Solver(object):
         return self.compute_residual(xi)[1]
 
     def estimate_pose(self, xi):
+
+        # skip estimation when reference points are empty
+        if self.ref.x.shape[1] == 0:
+            return xi
+
         result = least_squares(
                 fun=self.residual,
                 jac=self.residual_jac,
