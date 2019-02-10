@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import scipy
 import scipy.signal
@@ -310,23 +311,28 @@ class DepthEstimator(Process):
 
     def set_keyframe(self, frame):
         self.keyframe = frame
+        self.keyframes.put(frame)
 
     def get_keyframe(self):
-        if not self.keyframes.empty():
+        if self.keyframe is None or not self.keyframes.empty():
             self.keyframe = self.keyframes.get()
         return self.keyframe
 
     def run(self):
+        frame, _, _, _ = self.frames.get()
+        self.set_keyframe(frame)
+
         while self.terminate.value == 0:
-            try:
-                frame = self.frames.get(timeout=1)
-            except:
+            if self.frames.empty():
+                time.sleep(0.01)
                 continue
 
-            # Take all frames in the queue
-            unmapped_frames = [frame]
+            unmapped_frames = []
             while not self.frames.empty():
-                unmapped_frames.append(self.frames.get())
+                frame, t, n, rho = self.frames.get()
+                if frame.parent_id == self.keyframe.id:
+                    unmapped_frames.append(frame)
+
             print(len(unmapped_frames))
 
 class SLAMSystem(object):
@@ -361,7 +367,7 @@ class SLAMSystem(object):
     def track(self, raw_frame):
         frame = Frame(raw_frame)
         if frame.id == 0:
-            self.depth_estimator.set_keyframe(frame)
+            self.depth_estimator.put_frame(frame, self.t, self.n)
             self.tracker.set_keyframe(frame)
             return self.t, self.n
 
