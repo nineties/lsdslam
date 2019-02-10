@@ -6,7 +6,6 @@ import scipy.signal
 from PIL import Image, ImageDraw
 from scipy.ndimage import sobel, zoom
 from scipy.optimize import least_squares, minimize
-from threading import Thread
 
 # In the following codes we use following notations:
 #
@@ -311,33 +310,6 @@ class PoseGraph(object):
     def add_pose(self, t, n, rho=0):
         self.poses.append((t, n, rho))
 
-class MappingThread(Thread):
-    def __init__(self, system):
-        super().__init__()
-        self.system = system
-
-    def run(self):
-        while not self.system.terminate:
-            print('mapping')
-
-class ConstraintThread(Thread):
-    def __init__(self, system):
-        super().__init__()
-        self.system = system
-
-    def run(self):
-        while not self.system.terminate:
-            print('constraint')
-
-class OptimizationThread(Thread):
-    def __init__(self, system):
-        super().__init__()
-        self.system = system
-
-    def run(self):
-        while not self.system.terminate:
-            print('optimization')
-
 class SLAMSystem(object):
     def __init__(self,
             dist_weight=16,
@@ -353,25 +325,18 @@ class SLAMSystem(object):
         self.n = zeros(3)   # rotation axis
         self.rho = 0        # log(rotation angle)
 
+        self.nframe = 0
+
         self.tracker = Tracker()
         self.graph = PoseGraph()
 
         self.terminate = False
-        self.mapping_thread = MappingThread(self)
-        self.constraint_thread = ConstraintThread(self)
-        self.optimization_thread = OptimizationThread(self)
 
     def __enter__(self):
-        self.mapping_thread.start()
-        self.constraint_thread.start()
-        self.optimization_thread.start()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.terminate = True
-        self.mapping_thread.join()
-        self.constraint_thread.join()
-        self.optimization_thread.join()
 
     def track(self, frame):
         # Estimate current pose
@@ -387,6 +352,8 @@ class SLAMSystem(object):
         else:
             thresh = 1
         if score > thresh:
-            print('new key frame')
+            print('select {}'.format(self.nframe))
         else:
-            print('no new key frame')
+            print('skip {}'.format(self.nframe))
+
+        self.nframe += 1
