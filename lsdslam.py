@@ -10,7 +10,7 @@ from threading import Thread
 
 # In the following codes we use following notations:
 #
-# - F_x:    (partial) differential coefficient d(F)/d(x).
+# - F_x: (partial) differential coefficient d(F)/d(x).
 #
 # and use following symbols:
 #
